@@ -157,7 +157,7 @@ public class Segundamano {
 				
 				//Añadir detalles del inmueble
 				
-				pstmt= conexion.prepareStatement("insert into detallesInmueble(det_descripcion, det_precio, det_codInmueble, det_vendedor) values(?,?,?,?)");
+				pstmt= conexion.prepareStatement("insert into detallesInmueble(det_descripcion, det_precio, det_codInmueble, det_vendedor, det_numImagenes) values(?,?,?,?,?)");
 				
 				if(caracteristicasAnuncio.get(0).length()>900){
 					
@@ -167,6 +167,7 @@ public class Segundamano {
 					pstmt.setString(2, precio);
 					pstmt.setInt(3, codInmuebleAnterior);
 					pstmt.setString(4, caracteristicasAnuncio.get(1));
+					pstmt.setInt(5, Integer.parseInt(caracteristicasAnuncio.get(2)));
 					pstmt.executeUpdate();
 					
 				}else{
@@ -175,6 +176,7 @@ public class Segundamano {
 					pstmt.setString(2, precio);
 					pstmt.setInt(3, codInmuebleAnterior);
 					pstmt.setString(4, caracteristicasAnuncio.get(1));
+					pstmt.setInt(5, Integer.parseInt(caracteristicasAnuncio.get(2)));
 					pstmt.executeUpdate();
 					
 				}	
@@ -199,6 +201,7 @@ public class Segundamano {
 	 * DEVUELVE: ArrayList con:
 	 * 				Posicion 0: Descripcion.
 	 * 				Posicion 1: Vendedor.
+	 * 				Posicion 2: Numero Imagenes
 	 * */
 	public static ArrayList<String> obtenerInfoDetallesInmueble(String urlDetalles,String idInmueble, String codInmueble){
 		
@@ -207,6 +210,7 @@ public class Segundamano {
 		ArrayList<String> urlImagenes = new ArrayList<String>();
 		ArrayList<String> caracteristicasAnuncio = new ArrayList<String>();
 		
+		int numImagenes, i;
 		boolean existenImagenes=true;
 		
 		
@@ -221,6 +225,7 @@ public class Segundamano {
 						
 			for(Element anuncio : listaAnuncios){
 				
+				i=0;
 				/*
 				 * Obtendremos de cada anuncio sus detalles
 				 * 
@@ -241,9 +246,10 @@ public class Segundamano {
 				
 				try{
 					
-					for(int i=0;existenImagenes;i++){
+					while(existenImagenes&&i<5){
 						
 						urlImagenes.add(anuncio.getElementById("thumb"+i).attr("onclick"));
+						i++;
 					}
 					
 				}catch(NullPointerException ex){
@@ -258,6 +264,7 @@ public class Segundamano {
 				//Añadimos todas las caracteristicas al array.
 				caracteristicasAnuncio.add(descripcion);
 				caracteristicasAnuncio.add(vendedor);
+				caracteristicasAnuncio.add(Integer.toString(urlImagenes.size()));
 				
 			}
 		} catch (IOException e) {
@@ -291,23 +298,12 @@ public class Segundamano {
 			partes.clear();
 		}
 			
-		//Descargamos 5 imagenes por inmueble
-		if(listaImagenes.size()<5){
-			
-			for(int i=0;i<listaImagenes.size();i++){
-	        	
-	        	descargaImagenes(urlDetalles,listaImagenes.get(i),idImueble, codInmueble, Integer.toString(i));
-	        }
-			
-		}else{
-			
-			for(int i=0;i<5;i++){
-				descargaImagenes(urlDetalles,listaImagenes.get(i),idImueble, codInmueble, Integer.toString(i));
-	        }
-		}
-        
-        
+		for(int i=0;i<listaImagenes.size();i++){
+        	
+        	descargaImagenes(urlDetalles,listaImagenes.get(i),idImueble, codInmueble, Integer.toString(i));
+        }
 		
+        
 	}
 	
 	public static String obtenerIdInmueble(String enlace){
