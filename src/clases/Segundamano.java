@@ -1,5 +1,8 @@
 package clases;
 
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
@@ -22,6 +25,8 @@ import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.imageio.ImageIO;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -40,7 +45,58 @@ public class Segundamano {
 		
 		//Llamamos al metodo realizar conexion para poder conectarnos a la BD.
 		conexion=Conexiones.realizarConexion();
-		obtenerInfo();
+		
+		
+		/*
+		 * Array URLS:
+		 * 	
+		 * 		Posicion 0: Venta - Casa adosada
+		 * 		Posicion 1: Venta - Chalés
+		 * 		Posicion 2: Venta - Pisos
+		 * 		Posicion 3: Alquiler - Para vacaciones
+		 * 		Posicion 4: Alquiler - Apartamento
+		 * 	
+		 * */
+		String[] urlsWeb = {
+				"http://www.segundamano.es/venta-de-casas-y-chales-alicante/javea.htm?ca=3_s&itype=8&fPos=394&fOn=sb_inmo_type",
+				"http://www.segundamano.es/venta-de-casas-y-chales-alicante/javea.htm?ca=3_s&itype=9&fPos=516&fOn=sb_inmo_type",
+				"http://www.segundamano.es/venta-de-pisos-alicante/javea.htm?ca=3_s&fPos=425&fOn=sb_st",
+				"http://www.segundamano.es/alquiler-de-vacaciones-y-apartamentos-alicante/javea.htm?ca=3_s&itype=17&fPos=343&fOn=sb_inmo_type",
+				"http://www.segundamano.es/alquiler-de-vacaciones-y-apartamentos-alicante/javea.htm?ca=3_s&itype=18&fPos=516&fOn=sb_inmo_type"
+		};
+		
+		/*
+		 * For que recorre el array de urls llamando al metodo
+		 * obtener info, al cual le pasa:
+		 * 
+		 * 		1: Url web
+		 * 		2: Categoria anuncio
+		 * 		3: Operacion anuncio
+		 * */
+		
+		for(int i=0;i<urlsWeb.length;i++){
+			
+			switch(i){
+			
+				case 0:
+						obtenerInfo(urlsWeb[0], 1, 1 );
+					break;
+				case 1:
+						obtenerInfo(urlsWeb[1], 2, 1 );
+					break;
+				case 2:
+						obtenerInfo(urlsWeb[2], 3, 1 );
+					break;
+				case 3:
+						obtenerInfo(urlsWeb[3], 4, 2 );
+					break;
+				case 4:
+						obtenerInfo(urlsWeb[4], 5, 2 );
+					break;
+				default:
+			}
+		}
+			
 		System.out.println("Scraping a la web Segundamano.es ha terminado");
 		
 	}
@@ -50,14 +106,14 @@ public class Segundamano {
 	 * ACCIONES: Se encarga de conectar con la página web de segundamano y hacer el Scraping
 	 * para obtener las caracteristicas que queramos.
 	 * */
-	public static void obtenerInfo(){
+	public static void obtenerInfo(String url, int categoria, int operacion){
 		
 		
-		String titulo, fecha, precio, enlace, categoria, imagenPrincipal, idInmueble;
+		String titulo="", fecha="", enlace="", idInmueble="";
 		
 		try {
 			
-			Document doc = Jsoup.connect("http://www.segundamano.es/pisos-y-casas-alicante/javea.htm?ca=3_s&fPos=168&fOn=sb_searchtext")
+			Document doc = Jsoup.connect(url)
 					.userAgent("Mozilla/5.0")
 					.post();
 			
@@ -65,7 +121,6 @@ public class Segundamano {
 			//	<ul id="65252781" class="basicList list_ads_row  "  style="position:relative">
 			
 			Elements listaAnuncios = doc.getElementsByClass("basicList");
-			boolean isPrimerAnuncio = true;
 			
 			for(Element anuncio : listaAnuncios){
 				
@@ -74,23 +129,18 @@ public class Segundamano {
 				 * 
 				 * - Titulo
 				 * - Fecha
-				 * - Precio
 				 * - Enlace
-				 * - Categoria
-				 * - Enlace primera Imagen
 				 * 
 				 * */
 				
 				titulo = anuncio.getElementsByClass("subjectTitle").text();			
 				fecha = anuncio.getElementsByClass("date").text();				
-				precio = anuncio.getElementsByClass("subjectPrice").text();
 				enlace = anuncio.getElementsByClass("subjectTitle").attr("href");
-				categoria = anuncio.getElementsByClass("infoBottom").text();
 				idInmueble=obtenerIdInmueble(enlace);
 				
-
+				
 				//Insertar info en la BBDD
-				addInfoBD(titulo, fecha, precio.substring(0, precio.indexOf('\u20AC')), enlace, categoria, idInmueble);
+				insertarInmueble(titulo, fecha, enlace, categoria, operacion, idInmueble);
 				
 				
 				
@@ -108,38 +158,25 @@ public class Segundamano {
 	 * ACCIONES: Recibe las caracteristicas del anuncio y crea un inmueble a partir de todas ellas.
 	 * 
 	 * */
-	public static void addInfoBD(String titulo, String fecha, String precio, String enlace, String categoria, String idInmueble){
+	public static void insertarInmueble(String titulo, String fecha, String enlace, int categoria, int operacion, String idInmueble){
 		
-		int cod_categoria=0, codInmuebleAnterior=0;
-		boolean encontrado=false;
-		String descripInmueble;
-		ArrayList<String> caracteristicasAnuncio = new ArrayList<String>();
+		int codInmuebleAnterior=0, idCaracteristicasAnuncio;
+		String descripInmueble="";
+		ArrayList<String> detallesAnuncio = new ArrayList<String>();
 		
 		try{
+						
+				//INSERTAR INMUEBLE
 			
-			PreparedStatement pstmt= conexion.prepareStatement("select cat_codigo from categoria where cat_nombre like '"+categoria+"%'");
-			ResultSet rsCategorias =pstmt.executeQuery();
-			
-	
-			while(rsCategorias.next()){
-			
-				cod_categoria=rsCategorias.getInt("cat_codigo");
-				encontrado=true;
-				
-			}
-		
-			rsCategorias.close();
-			
-			if(encontrado){
-				
-								
-				pstmt= conexion.prepareStatement("insert into inmuebles(in_nombre, in_url, in_fecha, in_categoria, in_idInmueble) values(?,?,?,?,?)"
+				PreparedStatement pstmt= conexion.prepareStatement("insert into inmuebles(in_nombre, in_url, in_fecha, in_categoria, in_operacion, in_idInmueble, in_web) values(?,?,?,?,?,?,?)"
 					   ,Statement.RETURN_GENERATED_KEYS);
 				pstmt.setString(1, titulo);
 				pstmt.setString(2, enlace);
 				pstmt.setString(3, fecha);
-				pstmt.setInt(4, cod_categoria);
-				pstmt.setString(5, idInmueble);
+				pstmt.setInt(4, categoria);
+				pstmt.setInt(5, operacion);
+				pstmt.setString(6, idInmueble);
+				pstmt.setString(7, "Segundamano");
 				pstmt.executeUpdate();
 				
 				//Obtener el ID del inmueble creado anteriormente.
@@ -149,47 +186,137 @@ public class Segundamano {
 					codInmuebleAnterior=idGenerado.getInt(1);
 				}
 				idGenerado.close();
-				//-----------------------------------------------
+				// FIN INSERTAR INMUEBLE ----------------------------------------
 				
-				// OBTENER CARACTERISTICAS DEL ANUNCIO.
 				
-				caracteristicasAnuncio=obtenerInfoDetallesInmueble(enlace,idInmueble,Integer.toString(codInmuebleAnterior));
+				// INSERTAR CARACTERISTICAS ANUNCIO.
+				idCaracteristicasAnuncio=insertarCaracteristicasInmueble(enlace);
 				
-				//Añadir detalles del inmueble
+	
+				// OBTENER CARACTERISTICAS DEL ANUNCIO Y INSERTAR LOS DETALLES.
+				detallesAnuncio=obtenerInfoDetallesInmueble(enlace,idInmueble,Integer.toString(codInmuebleAnterior));
 				
-				pstmt= conexion.prepareStatement("insert into detallesInmueble(det_descripcion, det_precio, det_codInmueble, det_vendedor, det_numImagenes) values(?,?,?,?,?)");
+				insertarDetallesInmueble(detallesAnuncio, codInmuebleAnterior);
 				
-				if(caracteristicasAnuncio.get(0).length()>900){
 					
-					descripInmueble = caracteristicasAnuncio.get(0).substring(0, 900);
-					
-					pstmt.setString(1, descripInmueble);
-					pstmt.setString(2, precio);
-					pstmt.setInt(3, codInmuebleAnterior);
-					pstmt.setString(4, caracteristicasAnuncio.get(1));
-					pstmt.setInt(5, Integer.parseInt(caracteristicasAnuncio.get(2)));
-					pstmt.executeUpdate();
-					
-				}else{
-					
-					pstmt.setString(1, caracteristicasAnuncio.get(0));
-					pstmt.setString(2, precio);
-					pstmt.setInt(3, codInmuebleAnterior);
-					pstmt.setString(4, caracteristicasAnuncio.get(1));
-					pstmt.setInt(5, Integer.parseInt(caracteristicasAnuncio.get(2)));
-					pstmt.executeUpdate();
-					
-				}	
-			}
 			
-		
-			pstmt.close();
+				pstmt.close();
 			
 		}catch(SQLException ex){
 			
 			System.out.println("Error al insertar el inmueble en la Base de Datos");
 			System.out.println(ex.getMessage()+"\n"+ex.getErrorCode());
 		}
+	}
+	
+	
+	/*
+	 * METODO PARA INSERTAR LAS CARACTERISTICAS DEL INMUEBLE
+	 * */
+	public static int insertarCaracteristicasInmueble(String urlDetalles){
+		
+		boolean existenCaracteristicas=false;
+		String caracteristicas="";
+		int idCaracteristicasAnuncio=0;
+				
+		try{
+			
+			Document doc = Jsoup.connect(urlDetalles)
+					.userAgent("Mozilla/5.0")
+					.post();
+			
+			//-----------CARACTERISTICAS ANUNCIO-------------------------------------------
+			Elements elemento = doc.getElementsByClass("extra_features_detail_sel");
+			
+			for(int i=0;i<elemento.size();i++){
+				
+				existenCaracteristicas=true;
+				if(i==elemento.size()-1){
+					caracteristicas += elemento.get(i).text()+".";
+				}else{
+					caracteristicas += elemento.get(i).text()+", ";
+				}
+				
+			}
+			
+			if(!existenCaracteristicas){
+				
+				caracteristicas="No hay caracteristicas";
+			}
+			//------------------------------------------------------------------------------
+			
+			//Statement.RETURN_GENERATED_KEYS --> Nos permite obtener el ultimo id generado.
+			PreparedStatement pstmt= conexion.prepareStatement("insert into caracteristicasInmueble(car_detalles) values(?)",Statement.RETURN_GENERATED_KEYS);
+			pstmt.setString(1, caracteristicas);
+			pstmt.executeUpdate();
+			
+			ResultSet idCaracAnuncio = pstmt.getGeneratedKeys();
+			while(idCaracAnuncio.next()){
+				
+				idCaracteristicasAnuncio=idCaracAnuncio.getInt(1);
+			}
+			
+			idCaracAnuncio.close();
+				
+			pstmt.close();
+		}catch(SQLException ex){
+			
+			System.out.println("Error al insertar las caracteristicas del inmueble en la Base de Datos");
+			System.out.println(ex.getMessage()+"\n"+ex.getErrorCode());
+			
+		} catch (IOException e) {
+			
+			System.out.println("Ha habido un error al hacer el Scraping a la Web.");
+			System.out.println(e.getMessage()+"\n"+e.getStackTrace());
+		}	
+		
+		return idCaracteristicasAnuncio;
+		
+	}
+	
+	
+	/*
+	 * METODO PARA INSERTAR LOS DETALLES DEL INMUEBLE
+	 * */
+	public static void insertarDetallesInmueble(ArrayList<String> detallesAnuncio, int idInmueble){
+		
+		String descripInmueble;
+		
+		try{
+			
+			PreparedStatement pstmt= conexion.prepareStatement("insert into detallesInmueble(det_descripcion, det_codInmueble, det_vendedor, det_numImagenes, det_habitaciones,"
+					+"det_superficie,det_terreno, det_vecesVisitado, det_precio) values(?,?,?,?,?,?,?,?,?)");
+			
+			pstmt.setString(1, detallesAnuncio.get(0));
+			pstmt.setInt(2, idInmueble);
+			pstmt.setString(3, detallesAnuncio.get(1));
+			pstmt.setInt(4, Integer.parseInt(detallesAnuncio.get(2)));
+			
+			if(detallesAnuncio.get(3).equals("")){
+				
+				pstmt.setInt(5, 0);
+			}else{
+				
+				pstmt.setInt(5, Integer.parseInt(detallesAnuncio.get(3)));
+			}
+			
+			pstmt.setString(6, detallesAnuncio.get(4));
+			pstmt.setString(7, detallesAnuncio.get(5));
+			pstmt.setInt(8, Integer.parseInt(detallesAnuncio.get(6)));
+			pstmt.setInt(9, Integer.parseInt(detallesAnuncio.get(7)));
+			pstmt.executeUpdate();
+				
+				
+			
+			pstmt.close();
+			
+		}catch(SQLException ex){
+			
+			System.out.println("Error al insertar los detalles del inmueble en la Base de Datos");
+			System.out.println(ex.getMessage()+"\n"+ex.getErrorCode());
+			
+		}
+		
 	}
 	
 	
@@ -202,15 +329,20 @@ public class Segundamano {
 	 * 				Posicion 0: Descripcion.
 	 * 				Posicion 1: Vendedor.
 	 * 				Posicion 2: Numero Imagenes
+	 * 				Posicion 3: Nº Habitaciones
+	 * 				Posicion 4: Superficie
+	 * 				Posicion 5: Terreno
+	 * 				Posicion 6: Numero de veces visitado.
+	 * 				Posicion 7: Precio.
 	 * */
 	public static ArrayList<String> obtenerInfoDetallesInmueble(String urlDetalles,String idInmueble, String codInmueble){
 		
 		
-		String descripcion, vendedor, caracteristicas, descripCaract, telefono, imagenes;
+		String descripcion="", vendedor="", habitaciones="", superficie="", terreno="", cadena="", precio="", precioFinal="";
 		ArrayList<String> urlImagenes = new ArrayList<String>();
 		ArrayList<String> caracteristicasAnuncio = new ArrayList<String>();
 		
-		int numImagenes, i;
+		int i;
 		boolean existenImagenes=true;
 		
 		
@@ -231,18 +363,12 @@ public class Segundamano {
 				 * 
 				 * - Descripcion
 				 * - Vendedor
-				 * - Caracteristicas
-				 * - Descripcion Caracteristicas
-				 * - Telefono
 				 * - Url Imagenes
 				 * 
 				 * */
 				
 				descripcion = anuncio.getElementById("descriptionText").text();			
 				vendedor = anuncio.getElementsByClass("Cname").text();	
-				//caracteristicas = anuncio.getElementsByClass("extra_features_detail_sel").text();
-				//descripCaract = anuncio.getElementsByClass("descriptionRightContainer").text();
-				//telefono = anuncio.getElementsByClass("tel").text();
 				
 				try{
 					
@@ -267,6 +393,84 @@ public class Segundamano {
 				caracteristicasAnuncio.add(Integer.toString(urlImagenes.size()));
 				
 			}
+			
+			Elements listaDetalles = doc.getElementsByClass("descriptionFeatures");
+			
+			for(Element detalle : listaDetalles){
+				
+				Elements listaTitulos = detalle.getElementsByTag("dt");
+				Elements listasDetalles = detalle.getElementsByTag("dd");
+				
+				
+				for(int x=0;x<listaTitulos.size();x++){
+					
+					cadena=listaTitulos.get(x).text();
+					
+					switch(cadena){
+					
+						case "nº hab":
+									habitaciones=listasDetalles.get(x*2).text();
+							break;
+						
+						case "superficie":
+									superficie=listasDetalles.get(x*2).text();
+							break;
+							
+						case "terreno":
+									terreno=listasDetalles.get(x*2).text();
+							break;
+						
+						default:
+					}
+				}
+				
+				caracteristicasAnuncio.add(habitaciones);
+				caracteristicasAnuncio.add(superficie);
+				caracteristicasAnuncio.add(terreno);
+				
+			}
+			
+			//Cuantas veces se ha visitado el anuncio
+			String visitado= doc.getElementsByClass("TimesSeen").text();
+			String numVeces="";
+			
+			for(int x=0;x<visitado.length();x++){
+				
+				if(Character.isDigit(visitado.charAt(x))){
+					
+					numVeces += visitado.charAt(x);
+					
+				}
+			}
+			
+			caracteristicasAnuncio.add(numVeces);
+			//-----------------------------------------------
+			
+			//OBTENER PRECIO
+			precio=doc.getElementsByClass("price").text();
+			if(precio.equals("")){
+				
+				precioFinal="0";
+				
+			}else{
+				
+				//precioFinal=precio.substring(0, precio.indexOf('\u20AC'));
+				//precioFinal.replace(".", "");
+				
+				for(int x=0;x<precio.length();x++){
+					
+					if(Character.isDigit(precio.charAt(x))){
+						
+						precioFinal += precio.charAt(x);
+						
+					}
+				}
+				
+			}
+			
+			caracteristicasAnuncio.add(precioFinal);
+			
+			
 		} catch (IOException e) {
 			
 			System.out.println("Ha habido un error al hacer el Scraping a la Web de Detalles");
@@ -277,6 +481,9 @@ public class Segundamano {
 		return caracteristicasAnuncio;
 	}
 	
+	/*
+	 * METODO QUE OBTIENE LA URL DE LAS IMAGENES.
+	 * */
 	public static void obtenerUrlImagenes(String urlDetalles, ArrayList<String> urlImagenes, String idImueble, String codInmueble){
 		
 		ArrayList<String> listaImagenes = new ArrayList<String>();
@@ -359,7 +566,7 @@ public class Segundamano {
 	
 	public static String crearCarpetaImagenes(String idInmueble, String codInmueble){
 		
-		String ruta = "/Applications/XAMPP/xamppfiles/htdocs/FindHouse/imagenesAnuncios/".concat(codInmueble+"-"+idInmueble);
+		String ruta = "/Applications/XAMPP/xamppfiles/htdocs/openshift/imagenesAnuncios/".concat(codInmueble+"-"+idInmueble);
 		
 		File directorio = new File(ruta);
 		directorio.mkdir();
@@ -382,6 +589,47 @@ public class Segundamano {
         out.close();
         in.close();
 
+    }
+	
+	//Este método se utiliza para cargar la imagen de disco
+    public static BufferedImage loadImage(String pathName) {
+        BufferedImage bimage = null;
+        try {
+            bimage = ImageIO.read(new File(pathName));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return bimage;
+    }
+    
+    /*
+    Este método se utiliza para almacenar la imagen en disco
+    */
+    public static void saveImage(BufferedImage bufferedImage, String pathName) {
+        
+    	try {
+        	//String format = (pathName.endsWith(".png")) ? "png" : "jpg";
+            
+    		String format = (pathName.endsWith(".png")) ? "png" : "jpg";
+            File file =new File(pathName);
+            file.getParentFile().mkdirs();
+            ImageIO.write(bufferedImage, format, file);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    
+	//Este método se utiliza para redimensionar la imagen
+    public static BufferedImage resize(BufferedImage bufferedImage) {
+        int w = bufferedImage.getWidth();
+        int h = bufferedImage.getHeight();
+        BufferedImage bufim = new BufferedImage(600, 400, bufferedImage.getType());
+        Graphics2D g = bufim.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.drawImage(bufferedImage, 0, 0, 600, 400, 0, 0, w, h, null);
+        g.dispose();
+        return bufim;
     }
 	
 }
