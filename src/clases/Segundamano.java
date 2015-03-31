@@ -1,31 +1,19 @@
 package clases;
 
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
+
 import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
-import java.nio.charset.Charset;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.StringTokenizer;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.imageio.ImageIO;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -40,6 +28,7 @@ import clases.Conexiones;
 public class Segundamano {
 
     public static Connection conexion;
+    public static String rutaCarpetaImagenes;
  	
 	public static void iniciarScraping() {
 		
@@ -79,19 +68,19 @@ public class Segundamano {
 			switch(i){
 			
 				case 0:
-						obtenerInfo(urlsWeb[0], 1, 1 );
+						obtenerInfo(urlsWeb[0], 1, 1, "Jávea/Xàbia" );
 					break;
 				case 1:
-						obtenerInfo(urlsWeb[1], 2, 1 );
+						obtenerInfo(urlsWeb[1], 2, 1, "Jávea/Xàbia" );
 					break;
 				case 2:
-						obtenerInfo(urlsWeb[2], 3, 1 );
+						obtenerInfo(urlsWeb[2], 3, 1, "Jávea/Xàbia" );
 					break;
 				case 3:
-						obtenerInfo(urlsWeb[3], 4, 2 );
+						obtenerInfo(urlsWeb[3], 4, 2, "Jávea/Xàbia" );
 					break;
 				case 4:
-						obtenerInfo(urlsWeb[4], 5, 2 );
+						obtenerInfo(urlsWeb[4], 5, 2, "Jávea/Xàbia" );
 					break;
 				default:
 			}
@@ -106,7 +95,7 @@ public class Segundamano {
 	 * ACCIONES: Se encarga de conectar con la página web de segundamano y hacer el Scraping
 	 * para obtener las caracteristicas que queramos.
 	 * */
-	public static void obtenerInfo(String url, int categoria, int operacion){
+	public static void obtenerInfo(String url, int categoria, int operacion, String poblacion){
 		
 		
 		String titulo="", fecha="", enlace="", idInmueble="";
@@ -140,7 +129,7 @@ public class Segundamano {
 				
 				
 				//Insertar info en la BBDD
-				insertarInmueble(titulo, fecha, enlace, categoria, operacion, idInmueble);
+				insertarInmueble(titulo, fecha, enlace, categoria, operacion, idInmueble, poblacion);
 				
 				
 				
@@ -158,7 +147,7 @@ public class Segundamano {
 	 * ACCIONES: Recibe las caracteristicas del anuncio y crea un inmueble a partir de todas ellas.
 	 * 
 	 * */
-	public static void insertarInmueble(String titulo, String fecha, String enlace, int categoria, int operacion, String idInmueble){
+	public static void insertarInmueble(String titulo, String fecha, String enlace, int categoria, int operacion, String idInmueble, String poblacion){
 		
 		int codInmuebleAnterior=0, idCaracteristicasAnuncio;
 		String descripInmueble="";
@@ -196,7 +185,7 @@ public class Segundamano {
 				// OBTENER CARACTERISTICAS DEL ANUNCIO Y INSERTAR LOS DETALLES.
 				detallesAnuncio=obtenerInfoDetallesInmueble(enlace,idInmueble,Integer.toString(codInmuebleAnterior));
 				
-				insertarDetallesInmueble(detallesAnuncio, codInmuebleAnterior,idCaracteristicasAnuncio);
+				insertarDetallesInmueble(detallesAnuncio, codInmuebleAnterior,idCaracteristicasAnuncio, poblacion);
 				
 					
 			
@@ -278,7 +267,7 @@ public class Segundamano {
 	/*
 	 * METODO PARA INSERTAR LOS DETALLES DEL INMUEBLE
 	 * */
-	public static void insertarDetallesInmueble(ArrayList<String> detallesAnuncio, int idInmueble, int idCaracInmueble){
+	public static void insertarDetallesInmueble(ArrayList<String> detallesAnuncio, int idInmueble, int idCaracInmueble, String poblacion){
 		
 		String descripInmueble;
 		
@@ -303,14 +292,14 @@ public class Segundamano {
 			
 			pstmt.setString(6, detallesAnuncio.get(4));
 			pstmt.setString(7, detallesAnuncio.get(5));
-			pstmt.setString(8, detallesAnuncio.get(6));
-			pstmt.setInt(9, Integer.parseInt(detallesAnuncio.get(7)));
-			pstmt.setInt(10, Integer.parseInt(detallesAnuncio.get(8)));
+			pstmt.setString(8, poblacion);
+			pstmt.setInt(9, Integer.parseInt(detallesAnuncio.get(6)));
+			pstmt.setInt(10, Integer.parseInt(detallesAnuncio.get(7)));
 			pstmt.setInt(11, idCaracInmueble);
 			pstmt.executeUpdate();
 				
 				
-			
+			conexion.commit();
 			pstmt.close();
 			
 		}catch(SQLException ex){
@@ -318,23 +307,28 @@ public class Segundamano {
 			System.out.println("Error al insertar los detalles del inmueble en la Base de Datos");
 			System.out.println(ex.getMessage()+"\n"+ex.getErrorCode());
 			
-		}catch(IndexOutOfBoundsException ex){
+			try {
+				
+				conexion.rollback();
+				
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
 			
+		}catch(IndexOutOfBoundsException ex){
+		
 			System.out.println("Indice fuera de los limites, los detalles del anuncio no se han insertado, el anuncio se borrará");
 			
-			try{
+			try {
 				
-				PreparedStatement pstmt= conexion.prepareStatement("DELETE from caracteristicasInmueble WHERE car_codigo='"+idCaracInmueble);
-				pstmt.executeUpdate();
+				conexion.rollback();
 				
-				pstmt= conexion.prepareStatement("DELETE from inmuebles WHERE in_codigo='"+idInmueble);
-				pstmt.executeUpdate();
-
-			}catch(SQLException e){
+				//Borramos la carpeta con las fotos.
+				File directorio = new File(rutaCarpetaImagenes);
+				borrarCarpetaImagenAnuncio(directorio);
 				
-				System.out.println("Error al borrar el anuncio de la Base de Datos");
-				System.out.println(e.getMessage()+"\n"+e.getErrorCode());
-				
+			} catch (SQLException e) {
+				e.printStackTrace();
 			}
 			
 		}
@@ -354,14 +348,13 @@ public class Segundamano {
 	 * 				Posicion 3: Nº Habitaciones
 	 * 				Posicion 4: Superficie
 	 * 				Posicion 5: Terreno
-	 * 				Posicion 6: Poblacion
-	 * 				Posicion 7: Numero de veces visitado.
-	 * 				Posicion 8: Precio.
+	 * 				Posicion 6: Numero de veces visitado.
+	 * 				Posicion 7: Precio.
 	 * */
 	public static ArrayList<String> obtenerInfoDetallesInmueble(String urlDetalles,String idInmueble, String codInmueble){
 		
 		
-		String descripcion="", vendedor="", habitaciones="", superficie="", terreno="", cadena="", precio="", precioFinal="", poblacion="";
+		String descripcion="", vendedor="", habitaciones="", superficie="", terreno="", cadena="", precio="", precioFinal="";
 		ArrayList<String> urlImagenes = new ArrayList<String>();
 		ArrayList<String> caracteristicasAnuncio = new ArrayList<String>();
 		int numImagenesDescargadas=0;
@@ -444,11 +437,6 @@ public class Segundamano {
 									terreno=listasDetalles.get(x*2).text();
 							break;
 						
-						case "municipio":
-							
-									poblacion=listasDetalles.get(x*2).text();
-							break;
-						
 						default:
 					}
 				}
@@ -456,7 +444,6 @@ public class Segundamano {
 				caracteristicasAnuncio.add(habitaciones);
 				caracteristicasAnuncio.add(superficie);
 				caracteristicasAnuncio.add(terreno);
-				caracteristicasAnuncio.add(poblacion);
 				
 			}
 			
@@ -478,6 +465,7 @@ public class Segundamano {
 			
 			//OBTENER PRECIO
 			precio=doc.getElementsByClass("price").text();
+			
 			if(precio.equals("")){
 				
 				precioFinal="0";
@@ -590,9 +578,9 @@ public class Segundamano {
 			
 		} catch (IOException e) {
 			
-			/*System.out.println("Ha habido un error al intentar descargar las Imagenes.......");
+			System.out.println("Ha habido un error al intentar descargar las Imagenes, probaremos con la siguiente...");
 			System.out.println("Mensaje: "+e.getMessage() + "\nTraza: "+e.getStackTrace());
-			*/
+			
 			
 			return false;
 		}catch(NullPointerException e){
@@ -605,7 +593,8 @@ public class Segundamano {
 	
 	public static String crearCarpetaImagenes(String idInmueble, String codInmueble){
 		
-		String ruta = "/Applications/XAMPP/xamppfiles/htdocs/openshift/imagenesAnuncios/".concat(codInmueble+"-"+idInmueble);
+		String ruta = "/Applications/XAMPP/xamppfiles/htdocs/openshift/imagenesAnuncios/Segundamano/".concat(codInmueble+"-"+idInmueble);
+		rutaCarpetaImagenes=ruta;
 		
 		File directorio = new File(ruta);
 		directorio.mkdir();
@@ -630,6 +619,29 @@ public class Segundamano {
 
     }
 	
+	public static void borrarCarpetaImagenAnuncio(File carpeta){
+		
+		File directorio = new File(rutaCarpetaImagenes);
+		
+		File[] ficheros = directorio.listFiles();
+		
+		for(int i=0;i<ficheros.length;i++){
+			
+			if(ficheros[i].isDirectory()){
+				
+				borrarCarpetaImagenAnuncio(ficheros[i]);
+
+			}
+				
+			ficheros[i].delete();	
+			
+		}
+	}
+	
+	
+	/*
+	 *  CODIGO QUE SE ENCARGA DE REDIMENSIONAR LAS IMAGENES
+	 * 
 	//Este método se utiliza para cargar la imagen de disco
     public static BufferedImage loadImage(String pathName) {
         BufferedImage bimage = null;
@@ -641,9 +653,9 @@ public class Segundamano {
         return bimage;
     }
     
-    /*
+    
     Este método se utiliza para almacenar la imagen en disco
-    */
+    
     public static void saveImage(BufferedImage bufferedImage, String pathName) {
         
     	try {
@@ -659,7 +671,7 @@ public class Segundamano {
     }
     
     
-	//Este método se utiliza para redimensionar la imagen
+	Este método se utiliza para redimensionar la imagen
     public static BufferedImage resize(BufferedImage bufferedImage) {
         int w = bufferedImage.getWidth();
         int h = bufferedImage.getHeight();
@@ -670,7 +682,7 @@ public class Segundamano {
         g.dispose();
         return bufim;
     }
-	
+	*/
 }
 
 

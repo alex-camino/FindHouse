@@ -21,6 +21,7 @@ public class Conexiones {
 			String passwordDB = "1234";
 			
 			conexion = DriverManager.getConnection(servidor,usuarioDB,passwordDB);
+			conexion.setAutoCommit(false);
 			
 		} catch(SQLException ex){
         	
