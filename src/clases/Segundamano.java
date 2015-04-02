@@ -25,7 +25,7 @@ import com.mysql.jdbc.Statement;
 import clases.Conexiones;
 
 
-public class Segundamano {
+public class Segundamano extends Thread{
 
     public static Connection conexion;
     public static String rutaCarpetaImagenes;
@@ -36,6 +36,12 @@ public class Segundamano {
     public static boolean descargarImagenes=false;
  	public static int operacion, categoria;
  	public static String poblacion="";
+ 	
+ 	public void run()
+ 	{
+ 		iniciarScraping();
+ 		System.out.println("El Scraping a la web Segundamano.es ha terminado");
+ 	}
  	
 	public static void iniciarScraping() {
 		
@@ -67,9 +73,6 @@ public class Segundamano {
 			}
 			
 		}
-			
-		System.out.println("El Scraping a la web Segundamano.es ha terminado");
-		
 	}
 	
 	/*

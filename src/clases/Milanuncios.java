@@ -25,15 +25,20 @@ import com.mysql.jdbc.Statement;
 import clases.Conexiones;
 
 
-public class Milanuncios {
+public class Milanuncios extends Thread{
 
     public static Connection conexion;
     public static String rutaCarpetaImagenes;
     public static ArrayList<String> listaFotos = new ArrayList<String>();
     public static ArrayList<String> contenedorAnuncio = new ArrayList<String>();
     
- 	
-	public static void iniciarScraping() {
+ 	public void run()
+ 	{
+ 		iniciarScraping();
+ 		System.out.println("Scraping a la web Milanuncios.com ha terminado");
+ 	}
+	public static void iniciarScraping() 
+	{
 		
 		//Llamamos al metodo realizar conexion para poder conectarnos a la BD.
 		conexion=Conexiones.realizarConexion();
@@ -65,9 +70,7 @@ public class Milanuncios {
 				obtenerInfo(urlsWeb[i], 1, "Jávea/Xàbia");
 			}
 		}
-			
-		System.out.println("Scraping a la web Milanuncios.com ha terminado");
-		
+				
 	}
 	
 	/*
@@ -116,7 +119,7 @@ public class Milanuncios {
 			}
 			
 			//Recorrer cada pagina obteniendo los anuncios.
-			for(int x=0;x<4;x++){
+			for(int x=0;x<(arrayPaginas.size()-1);x++){
 				
 				if(x==0){
 					
