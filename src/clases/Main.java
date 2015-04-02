@@ -6,6 +6,7 @@ public class Main {
 		
 		//Llamamos a la clase Segundamano, para hacerle el Scraping
 		
-		Segundamano.iniciarScraping();
+		//Segundamano.iniciarScraping();
+		Milanuncios.iniciarScraping();
 	}
 }

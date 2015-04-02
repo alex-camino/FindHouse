@@ -49,22 +49,24 @@ public class Milanuncios {
 				"http://www.milanuncios.com/alquiler-de-viviendas-en-javea|xabia-alicante/",
 				"http://www.milanuncios.com/venta-de-viviendas-en-javea|xabia-alicante/"};
 		
+		//obtenerInfo(urlsWeb[0], 2, "Jávea/Xàbia");
 		
 		for(int i=0;i<urlsWeb.length;i++){
 			
-			obtenerInfo(urlsWeb[i]);
+			
+			
 			if(i==0){
 				
-				insertarInmueble(2,"Jávea/Xàbia");
+				obtenerInfo(urlsWeb[i], 2, "Jávea/Xàbia");
 			}
 			
 			if(i==1){
 				
-				insertarInmueble(1,"Jávea/Xàbia");
+				obtenerInfo(urlsWeb[i], 1, "Jávea/Xàbia");
 			}
 		}
 			
-		System.out.println("Scraping a la web Segundamano.es ha terminado");
+		System.out.println("Scraping a la web Milanuncios.com ha terminado");
 		
 	}
 	
@@ -86,13 +88,13 @@ public class Milanuncios {
 	 * 				Posicion 8: vecesListado
 	 * 				Posicion 9: Superficie
 	 * */
-	public static void obtenerInfo(String urlWeb){
+	public static void obtenerInfo(String urlWeb, int operacion, String poblacion){
 		
 		String url="http://www.milanuncios.com";
 		String urlDetalles="", referencia="", fecha="", titulo="", categoria="", descripcion="", txtPrecio="", precioReal="", txtHabitaciones="",
 			   numHabitaciones="", superficie="", vecesListado="";
 		ArrayList<String> arrayPaginas = new ArrayList<String>();
-
+		
 
 		try {
 			
@@ -115,29 +117,40 @@ public class Milanuncios {
 			
 			//Recorrer cada pagina obteniendo los anuncios.
 			for(int x=0;x<4;x++){
-								
-				doc = Jsoup.connect(urlWeb+arrayPaginas.get(x))
-						.userAgent("Mozilla/5.0")
-						.post();
+				
+				if(x==0){
+					
+					doc = Jsoup.connect(urlWeb+"?demanda=n")
+							.userAgent("Mozilla/5.0")
+							.post();
+				}else{
+					
+					
+					doc = Jsoup.connect(urlWeb+arrayPaginas.get(x)+"&demanda=n")
+							.userAgent("Mozilla/5.0")
+							.post();
+				}
+				
 				
 				Elements listaAnuncios = doc.getElementsByClass("x1");
 				
 				for(Element anuncio : listaAnuncios){
 					
-					//Reiniciamos los arraylist.
+					//Reiniciamos los arraylist y algunas variables.
 					listaFotos.clear();
 					contenedorAnuncio.clear();
-					
+					precioReal="";
+					numHabitaciones="";
 					
 					urlDetalles=url+anuncio.getElementsByClass("cti").attr("href");	
 					
 					//Recorremos la url de los detalles de cada anuncio.
-					doc = Jsoup.connect(urlDetalles)
+					Document docDetalles = Jsoup.connect(urlDetalles)
 							.userAgent("Mozilla/5.0")
 							.post();
 					
 					//Obtener la referencia
-					Elements numReferencia = doc.getElementsByClass("anuRefBox");
+					Elements numReferencia = docDetalles.getElementsByClass("anuRefBox");
 					
 					for(Element detalle : numReferencia){
 						
@@ -145,13 +158,13 @@ public class Milanuncios {
 										
 					}
 					
-					fecha=doc.getElementsByClass("anuFecha").text();
-					titulo=doc.getElementsByClass("pagAnuTituloBox").text();
-					categoria=doc.getElementsByClass("anuTitulo").text();
-					descripcion=doc.getElementsByClass("pagAnuCuerpoAnu").text();
+					fecha=docDetalles.getElementsByClass("anuFecha").text();
+					titulo=docDetalles.getElementsByClass("pagAnuTituloBox").text();
+					categoria=docDetalles.getElementsByClass("anuTitulo").text();
+					descripcion=docDetalles.getElementsByClass("pagAnuCuerpoAnu").text();
 					
 					//Obtener Precio
-					txtPrecio = doc.getElementsByClass("pr").text();
+					txtPrecio = docDetalles.getElementsByClass("pr").text();
 					
 					if(txtPrecio.equals("")){
 						
@@ -167,7 +180,7 @@ public class Milanuncios {
 					
 					
 					//Obtener Metros 2
-					superficie=doc.getElementsByClass("m2").text();
+					superficie=docDetalles.getElementsByClass("m2").text();
 					
 					if(superficie.equals("")){
 						
@@ -175,7 +188,7 @@ public class Milanuncios {
 					}
 							
 					//Obtener Habitaciones
-					txtHabitaciones=doc.getElementsByClass("dor").text();
+					txtHabitaciones=docDetalles.getElementsByClass("dor").text();
 					
 					if(txtHabitaciones.equals("")){
 						
@@ -190,11 +203,11 @@ public class Milanuncios {
 					}
 				
 					//Obtener veces listado
-					Elements elementoVecesListado = doc.getElementsByClass("dato");
+					Elements elementoVecesListado = docDetalles.getElementsByClass("dato");
 					vecesListado=elementoVecesListado.get(0).getElementsByTag("strong").text();
 					
 					//Obtener fotos
-					Elements fotos = doc.getElementsByClass("pagAnuFotoBox");
+					Elements fotos = docDetalles.getElementsByClass("pagAnuFotoBox");
 					
 					if(fotos.size()!=0){
 						
@@ -207,8 +220,6 @@ public class Milanuncios {
 								listaFotos.add(detalleUrl.getElementsByTag("img").attr("src"));
 							}						
 						}
-					
-					//Llamar metodo fotos.
 					}
 							
 					
@@ -224,8 +235,7 @@ public class Milanuncios {
 					contenedorAnuncio.add(vecesListado);
 					contenedorAnuncio.add(superficie);
 					
-					
-					//Llamar al metodo que cree el anuncio
+					insertarInmueble(operacion, poblacion);
 					//System.exit(0);
 				}	
 			}
@@ -233,6 +243,13 @@ public class Milanuncios {
 			
 			System.out.println("Ha habido un error al hacer el Scraping a la Web de milanuncios.");
 			System.out.println(e.getMessage()+"\n"+e.getStackTrace());
+			
+			/*
+			System.out.println("Esto es lo que contiene el ultimo anuncio.");
+			for(int i=0;i<contenedorAnuncio.size();i++){
+				
+				System.out.println(contenedorAnuncio.get(i));
+			}*/
 		}		
 	}
 	
@@ -250,7 +267,7 @@ public class Milanuncios {
 						
 				//INSERTAR INMUEBLE
 			
-				PreparedStatement pstmt= conexion.prepareStatement("insert into inmuebles(in_nombre, in_url, in_fecha, in_categoria, in_operacion"
+				PreparedStatement pstmt= conexion.prepareStatement("insert into inmuebles(in_titulo, in_url, in_fecha, in_categoria, in_operacion"
 						+ ", in_idInmueble, in_web) values(?,?,?,?,?,?,?)",Statement.RETURN_GENERATED_KEYS);
 				
 				pstmt.setString(1, contenedorAnuncio.get(3));
@@ -278,8 +295,12 @@ public class Milanuncios {
 			
 		}catch(SQLException ex){
 			
-			System.out.println("Error al insertar el inmueble en la Base de Datos");
+			System.out.println("Error al insertar el inmueble en la Base de Datos, anuncio no insertado.");
 			System.out.println(ex.getMessage()+"\n"+ex.getErrorCode());
+			if(ex.getErrorCode()==1452){
+				
+				System.out.println("Se ha intentado duplicar un anuncio. El anuncio no se ha insertado.");
+			}
 		}
 	}
 	
@@ -306,8 +327,6 @@ public class Milanuncios {
 			pstmt.setInt(7, Integer.parseInt(contenedorAnuncio.get(6)));	
 			pstmt.executeUpdate();
 			
-			conexion.commit();
-			
 			//Obtener el ID del inmueble creado anteriormente.
 			ResultSet idGenerado = pstmt.getGeneratedKeys();
 			while(idGenerado.next()){
@@ -315,6 +334,7 @@ public class Milanuncios {
 				codigoDetallesInmueble=idGenerado.getInt(1);
 			}
 			
+			conexion.commit();
 			idGenerado.close();
 			pstmt.close();
 			
@@ -367,6 +387,10 @@ public class Milanuncios {
 				return 5;
 		else if(categoria.contains("estudio"))
 				return 6;
+		else if(categoria.contains("ático"))
+			return 7;
+		else if(categoria.contains("loft"))
+			return 9;
 		
 		return -1;
 	}
@@ -385,7 +409,7 @@ public class Milanuncios {
 				//Creamos la carpeta donde guardaremos las imagenes.
 				rutaCarpeta=crearCarpetaImagenes(idInmueble, Integer.toString(codigoInmueble));
 			
-				for(int i=0;i<listaFotos.size()&&i<4;i++){
+				for(int i=0;i<listaFotos.size()&&i<5;i++){
 					
 					descargaImagenesInmueble(listaFotos.get(i), rutaCarpeta, Integer.toString(i));
 				}	
