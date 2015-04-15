@@ -39,40 +39,33 @@ public class Segundamano extends Thread{
  	
  	public void run()
  	{
+ 		Main.inicioSegundamano = System.currentTimeMillis();
  		iniciarScraping();
  		System.out.println("El Scraping a la web Segundamano.es ha terminado");
+ 		Main.finalSegundamano = System.currentTimeMillis();
  	}
  	
 	public static void iniciarScraping() {
 		
 		//Llamamos al metodo realizar conexion para poder conectarnos a la BD.
 		conexion=Conexiones.realizarConexion();
+		String[] localidades = {"Javea", "Denia", "Calpe", "Benidorm"};
 		
-		String[] urlsWeb = {
-				"http://www.segundamano.es/venta-de-pisos-y-casas-alicante/javea.htm?ca=3_s&fPos=601&fOn=sb_st",
-				"http://www.segundamano.es/alquiler-de-pisos-y-casas-alicante/javea.htm?ca=3_s&fPos=576&fOn=sb_st"
-				};
-			
-		for(int i=0;i<urlsWeb.length;i++){
+		
+		for(int i=0;i<localidades.length;i++){
 			
 			//Venta
-			if(i==0){
-			
-				operacion=1;
-				poblacion="Jávea/Xàbia";
-				obtenerInfo(urlsWeb[0]);
-			
-			}
+			operacion=1;
+			poblacion=localidades[i];
+			obtenerInfo("http://www.segundamano.es/venta-de-pisos-y-casas-alicante/"+localidades[i]+".htm?ca=3_s&fPos=601&fOn=sb_st");
 			
 			//Alquiler
-			if(i==1){
-			
-				operacion=2;
-				poblacion="Jávea/Xàbia";
-				obtenerInfo(urlsWeb[1]);
-			}
+			operacion=2;
+			poblacion=localidades[i];
+			obtenerInfo("http://www.segundamano.es/alquiler-de-pisos-y-casas-alicante/"+localidades[i]+".htm?ca=3_s&fPos=576&fOn=sb_st");
 			
 		}
+		
 	}
 	
 	/*
@@ -164,8 +157,8 @@ public class Segundamano extends Thread{
 				
 		String  cadena="", precio="", precioFinal="", cuadroImagenes="", titulo=""
 				,descripcion="", vendedor="", habitaciones="", superficie="", terreno="", categoria="", tipo="", fecha="", urlAnuncio="";
-		int i;
-		boolean existenImagenes=true;
+		int i=0;
+		boolean existenImagenes=true, anuncioCorrecto=false;
 		
 		fecha=fechaAnuncio;
 		
@@ -180,40 +173,39 @@ public class Segundamano extends Thread{
 			Elements listaAnuncios = doc.getElementsByClass("view");
 						
 			for(Element anuncio : listaAnuncios){
+								
 				
-				i=0;
-				
-				
-				// CARACTERISTICAS ANUNCIO - POS-0 - Titulo Anuncio 
-				titulo=anuncio.getElementsByClass("productTitle").text();
-				if(titulo.equals(""))
-					caracteristicasAnuncio.add("No hay titulo");
-				else
-					caracteristicasAnuncio.add(titulo);
-				
-				
-				// CARACTERISTICAS ANUNCIO - POS-1 - Descripcion Anuncio 
-				descripcion=anuncio.getElementById("descriptionText").text();
-				if(descripcion.equals(""))
-					caracteristicasAnuncio.add("No hay descripcion del anuncio.");
-				else
-					caracteristicasAnuncio.add(descripcion);
-				
-				
-				// CARACTERISTICAS ANUNCIO - POS-2 - Vendedor
-				vendedor=anuncio.getElementsByClass("Cname").text();
-				if(vendedor.equals(""))
-					caracteristicasAnuncio.add("Sin nombre");
-				else
-					caracteristicasAnuncio.add(vendedor);
-				
-				
-                //Controlaar si hay imagenes en el anuncio.
+				//Controlaar si hay imagenes en el anuncio.
                 cuadroImagenes=doc.getElementsByClass("centerMachine").attr("alt");
-    			
-    			if(!cuadroImagenes.equalsIgnoreCase("este anuncio no tiene foto")){
-    				
-					try{
+				if(!cuadroImagenes.equalsIgnoreCase("este anuncio no tiene foto")){
+					
+					anuncioCorrecto=true;
+					
+					// CARACTERISTICAS ANUNCIO - POS-0 - Titulo Anuncio 
+					titulo=anuncio.getElementsByClass("productTitle").text();
+					if(titulo.equals(""))
+						caracteristicasAnuncio.add("No hay titulo");
+					else
+						caracteristicasAnuncio.add(titulo);
+					
+					
+					// CARACTERISTICAS ANUNCIO - POS-1 - Descripcion Anuncio 
+					descripcion=anuncio.getElementById("descriptionText").text();
+					if(descripcion.equals(""))
+						caracteristicasAnuncio.add("No hay descripcion del anuncio.");
+					else
+						caracteristicasAnuncio.add(descripcion);
+					
+					
+					// CARACTERISTICAS ANUNCIO - POS-2 - Vendedor
+					vendedor=anuncio.getElementsByClass("Cname").text();
+					if(vendedor.equals(""))
+						caracteristicasAnuncio.add("Sin nombre");
+					else
+						caracteristicasAnuncio.add(vendedor);
+					
+					
+                	try{
 						
 						while(existenImagenes){
 							
@@ -227,139 +219,145 @@ public class Segundamano extends Thread{
 						
 						existenImagenes=false;
 					}
-    			}
+	    			
+				}
+				
 			}
 			
-			
-			Elements listaDetalles = doc.getElementsByClass("descriptionFeatures");
-			
-			for(Element detalle : listaDetalles){
+			//Si el anuncio tiene fotos entramos.
+			if(anuncioCorrecto){
 				
-				Elements listaTitulos = detalle.getElementsByTag("dt");
-				Elements listasDetalles = detalle.getElementsByTag("dd");
+				Elements listaDetalles = doc.getElementsByClass("descriptionFeatures");
 				
-				
-				for(int x=0;x<listaTitulos.size();x++){
+				for(Element detalle : listaDetalles){
 					
-					cadena=listaTitulos.get(x).text();
+					Elements listaTitulos = detalle.getElementsByTag("dt");
+					Elements listasDetalles = detalle.getElementsByTag("dd");
 					
-					switch(cadena){
 					
-						case "nº hab":
-										habitaciones=listasDetalles.get(x*2).text();
-							break;
+					for(int x=0;x<listaTitulos.size();x++){
 						
-						case "superficie":
-										superficie=listasDetalles.get(x*2).text();
-							break;
+						cadena=listaTitulos.get(x).text();
+						
+						switch(cadena){
+						
+							case "nº hab":
+											habitaciones=listasDetalles.get(x*2).text();
+								break;
 							
-						case "terreno":
-										terreno=listasDetalles.get(x*2).text();
-							break;
-						
-						case "categoría":
-										categoria=listasDetalles.get(x*2).text();
-							break;
-						
-						case "tipo":
-										tipo=listasDetalles.get(x*2).text();
-							break;
+							case "superficie":
+											superficie=listasDetalles.get(x*2).text();
+								break;
+								
+							case "terreno":
+											terreno=listasDetalles.get(x*2).text();
+								break;
 							
-						default:
+							case "categoría":
+											categoria=listasDetalles.get(x*2).text();
+								break;
+							
+							case "tipo":
+											tipo=listasDetalles.get(x*2).text();
+								break;
+								
+							default:
+						}
 					}
 				}
-			}
-			
-			 // CARACTERISTICAS ANUNCIO - POS-3 - Habitaciones 
-			if(habitaciones.equals(""))
-				caracteristicasAnuncio.add("0");
-			else
-				caracteristicasAnuncio.add(habitaciones);
-			
-			// CARACTERISTICAS ANUNCIO - POS-4 - Superficie
-			if(superficie.equals(""))
-				caracteristicasAnuncio.add("0 m2");
-			else
-				caracteristicasAnuncio.add(superficie);
-			
-			// CARACTERISTICAS ANUNCIO - POS-5 - Terreno
-			if(terreno.equals(""))
-				caracteristicasAnuncio.add("0 m2");
-			else
-				caracteristicasAnuncio.add(terreno);
-			
-			 // CARACTERISTICAS ANUNCIO - POS-6 - Categoria 
-			if(categoria.equals(""))
-				caracteristicasAnuncio.add("No hay categoria");
-			else
-				caracteristicasAnuncio.add(categoria);
-			
-			// CARACTERISTICAS ANUNCIO - POS-7 - Tipo 
-			if(tipo.equals(""))
-				caracteristicasAnuncio.add("No hay tipo");
-			else
-				caracteristicasAnuncio.add(tipo);
-			
-			
-			//Cuantas veces se ha visitado el anuncio
-			String visitado= doc.getElementsByClass("TimesSeen").text();
-			String numVeces="";
-			
-			if(visitado.length()>0){
 				
-				for(int x=0;x<visitado.length();x++){
+				 // CARACTERISTICAS ANUNCIO - POS-3 - Habitaciones 
+				if(habitaciones.equals(""))
+					caracteristicasAnuncio.add("0");
+				else
+					caracteristicasAnuncio.add(habitaciones);
+				
+				// CARACTERISTICAS ANUNCIO - POS-4 - Superficie
+				if(superficie.equals(""))
+					caracteristicasAnuncio.add("0 m2");
+				else
+					caracteristicasAnuncio.add(superficie);
+				
+				// CARACTERISTICAS ANUNCIO - POS-5 - Terreno
+				if(terreno.equals(""))
+					caracteristicasAnuncio.add("0 m2");
+				else
+					caracteristicasAnuncio.add(terreno);
+				
+				 // CARACTERISTICAS ANUNCIO - POS-6 - Categoria 
+				if(categoria.equals(""))
+					caracteristicasAnuncio.add("No hay categoria");
+				else
+					caracteristicasAnuncio.add(categoria);
+				
+				// CARACTERISTICAS ANUNCIO - POS-7 - Tipo 
+				if(tipo.equals(""))
+					caracteristicasAnuncio.add("No hay tipo");
+				else
+					caracteristicasAnuncio.add(tipo);
+				
+				
+				//Cuantas veces se ha visitado el anuncio
+				String visitado= doc.getElementsByClass("TimesSeen").text();
+				String numVeces="";
+				
+				if(visitado.length()>0){
 					
-					if(Character.isDigit(visitado.charAt(x))){
+					for(int x=0;x<visitado.length();x++){
 						
-						numVeces += visitado.charAt(x);
-						
+						if(Character.isDigit(visitado.charAt(x))){
+							
+							numVeces += visitado.charAt(x);
+							
+						}
 					}
-				}
-				
-				// CARACTERISTICAS ANUNCIO - POS-8 - Numero de veces Visitado 
-				caracteristicasAnuncio.add(numVeces);
-			}else{
-				
-				caracteristicasAnuncio.add("0");
-			}
-			
-			
-			//OBTENER PRECIO
-			precio=doc.getElementsByClass("price").text();
-			
-			if(precio.equals("")){
-				
-				precioFinal="0";
-				
-			}else{
-				
-				for(int x=0;x<precio.length();x++){
 					
-					if(Character.isDigit(precio.charAt(x))){
-						
-						precioFinal += precio.charAt(x);
-						
-					}
+					// CARACTERISTICAS ANUNCIO - POS-8 - Numero de veces Visitado 
+					caracteristicasAnuncio.add(numVeces);
+				}else{
+					
+					caracteristicasAnuncio.add("0");
 				}
 				
+				
+				//OBTENER PRECIO
+				precio=doc.getElementsByClass("price").text();
+				
+				if(precio.equals("")){
+					
+					precioFinal="0";
+					
+				}else{
+					
+					for(int x=0;x<precio.length();x++){
+						
+						if(Character.isDigit(precio.charAt(x))){
+							
+							precioFinal += precio.charAt(x);
+							
+						}
+					}
+					
+				}
+				
+				// CARACTERISTICAS ANUNCIO - POS-9 - Precio Inmueble
+				caracteristicasAnuncio.add(precioFinal);
+				
+				// CARACTERISTICAS ANUNCIO - POS-10 - ID Inmueble
+				caracteristicasAnuncio.add(obtenerIdInmueble(url));
+				
+				// CARACTERISTICAS ANUNCIO - POS-11 - Fecha Anuncio
+				caracteristicasAnuncio.add(fecha);
+				
+				// CARACTERISTICAS ANUNCIO - POS-12 - URL Inmueble
+				caracteristicasAnuncio.add(url);
+				
+				
+				
+				//Añadir info a la Base de datos
+				addInfoBD();
 			}
 			
-			// CARACTERISTICAS ANUNCIO - POS-9 - Precio Inmueble
-			caracteristicasAnuncio.add(precioFinal);
-			
-			// CARACTERISTICAS ANUNCIO - POS-10 - ID Inmueble
-			caracteristicasAnuncio.add(obtenerIdInmueble(url));
-			
-			// CARACTERISTICAS ANUNCIO - POS-11 - Fecha Anuncio
-			caracteristicasAnuncio.add(fecha);
-			
-			// CARACTERISTICAS ANUNCIO - POS-12 - URL Inmueble
-			caracteristicasAnuncio.add(url);
-			
-			
-			
-			//Añadir info a la Base de datos
-			addInfoBD();
 		} catch (IOException e) {
 			
 			System.out.println("Ha habido un error al hacer el Scraping a la Web de Detalles del Inmueble");
@@ -627,6 +625,8 @@ public class Segundamano extends Thread{
 		ArrayList<String> partes = new ArrayList<String>();
 		boolean imagenDescargada=false;
 		int numImagenesDescargadas=0;
+		String rutaCarpeta;
+		
 		
 		//De cada URL, nos quedamos solo con la direccion Web.
 		for(int i=0;i<urlImagenes.size();i++){
@@ -649,7 +649,11 @@ public class Segundamano extends Thread{
 		//Descargamos cada imagene.
 		for(int i=0;i<listaImagenes.size()&&numImagenesDescargadas<5;i++){
         	
-        	imagenDescargada=descargaImagenes(listaImagenes.get(i), Integer.toString(i));
+			//Creamos la carpeta donde guardaremos las imagenes.
+			rutaCarpeta=crearCarpetaImagenes();
+		
+			imagenDescargada=descargaImagenesInmueble(listaImagenes.get(i), rutaCarpeta, Integer.toString(numImagenesDescargadas));
+        	
         	
         	if(imagenDescargada){
         		
@@ -687,50 +691,10 @@ public class Segundamano extends Thread{
         return partes.get(4);
 	}
 	
-	
-	
-	public static boolean descargaImagenes(String enlaceFoto, String numImagen){
+	/*Metodo que crea la ruta de la carpeta de cada anuncio*/
+	public static String crearCarpetaImagenes(){
 		
-		String rutaCarpeta;
-		
-		try {
-			Document doc = Jsoup.connect(caracteristicasAnuncio.get(12))
-					.userAgent("Mozilla/5.0")
-					.post();
-			
-			String existenImagenes="";
-			
-			existenImagenes=doc.getElementsByClass("centerMachine").attr("alt");
-			
-			if(!existenImagenes.equalsIgnoreCase("este anuncio no tiene foto")){
-				
-				//Creamos la carpeta donde guardaremos las imagenes.
-				rutaCarpeta=crearCarpetaImagenes(caracteristicasAnuncio.get(10), caracteristicasAnuncio.get(13));
-			
-				descargaImagenesInmueble(enlaceFoto, rutaCarpeta, numImagen);
-				
-			}
-			
-			return true;
-			
-		} catch (IOException e) {
-			
-			System.out.println("Ha habido un error al intentar descargar las Imagenes, probaremos con la siguiente...");
-			System.out.println("Mensaje: "+e.getMessage() + "\nTraza: "+e.getStackTrace());
-			
-			
-			return false;
-		}catch(NullPointerException e){
-			
-			
-		}
-		return false;
-		
-	}
-	
-	public static String crearCarpetaImagenes(String idInmueble, String codInmueble){
-		
-		String ruta = "/Applications/XAMPP/xamppfiles/htdocs/openshift/imagenesAnuncios/Segundamano/".concat(codInmueble+"-"+idInmueble);
+		String ruta = "/Applications/XAMPP/xamppfiles/htdocs/openshift/imagenesAnuncios/Segundamano/".concat(caracteristicasAnuncio.get(13)+"-"+caracteristicasAnuncio.get(10));
 		rutaCarpetaImagenes=ruta;
 		
 		File directorio = new File(ruta);
@@ -740,20 +704,38 @@ public class Segundamano extends Thread{
 	}
 	
 	
-	public static void descargaImagenesInmueble(String src, String rutaCarpeta, String numImagen)  throws IOException {
+	public static boolean descargaImagenesInmueble(String src, String rutaCarpeta, String numImagen){
 	
-        URL url = new URL(src);
-        InputStream in = url.openStream();
+		try{
+			
+			URL url = new URL(src);
+	        InputStream in = url.openStream();
 
-        OutputStream out = new BufferedOutputStream(new FileOutputStream(rutaCarpeta.concat("/"+numImagen+".jpg")));
+	        String ruta=rutaCarpeta.concat("/"+numImagen+".jpg");
+	        
+	        OutputStream out = new BufferedOutputStream(new FileOutputStream(ruta));
 
-       
-        for (int b; (b = in.read()) != -1;) {
-            out.write(b);
-        }
-        out.close();
-        in.close();
+	       
+	        for (int b; (b = in.read()) != -1;) {
+	            out.write(b);
+	        }
+	        out.close();
+	        in.close();
 
+	        ImageResizer nuevaImagen = new ImageResizer();
+	        
+	        nuevaImagen.cargarImagen(ruta, 1000, 644);
+	        
+	        return true;
+			
+		}catch (IOException e) {
+			
+			System.out.println("Ha habido un error al intentar descargar las Imagenes desde Segundamano, probaremos con la siguiente. ID-Inmueble"+caracteristicasAnuncio.get(10));
+			System.out.println("Mensaje: "+e.getMessage() + "\nTraza: "+e.getStackTrace());
+			
+			return false;
+		}
+        
     }
 	
 	public static void borrarCarpetaImagenAnuncio(File carpeta){
@@ -774,52 +756,7 @@ public class Segundamano extends Thread{
 			
 		}
 	}
-	
-	
-	/*
-	 *  CODIGO QUE SE ENCARGA DE REDIMENSIONAR LAS IMAGENES
-	 * 
-	//Este método se utiliza para cargar la imagen de disco
-    public static BufferedImage loadImage(String pathName) {
-        BufferedImage bimage = null;
-        try {
-            bimage = ImageIO.read(new File(pathName));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return bimage;
-    }
-    
-    
-    Este método se utiliza para almacenar la imagen en disco
-    
-    public static void saveImage(BufferedImage bufferedImage, String pathName) {
-        
-    	try {
-        	//String format = (pathName.endsWith(".png")) ? "png" : "jpg";
-            
-    		String format = (pathName.endsWith(".png")) ? "png" : "jpg";
-            File file =new File(pathName);
-            file.getParentFile().mkdirs();
-            ImageIO.write(bufferedImage, format, file);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-    
-    
-	Este método se utiliza para redimensionar la imagen
-    public static BufferedImage resize(BufferedImage bufferedImage) {
-        int w = bufferedImage.getWidth();
-        int h = bufferedImage.getHeight();
-        BufferedImage bufim = new BufferedImage(600, 400, bufferedImage.getType());
-        Graphics2D g = bufim.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g.drawImage(bufferedImage, 0, 0, 600, 400, 0, 0, w, h, null);
-        g.dispose();
-        return bufim;
-    }
-	*/
+
 }
 
 

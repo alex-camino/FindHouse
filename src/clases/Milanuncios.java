@@ -34,8 +34,10 @@ public class Milanuncios extends Thread{
     
  	public void run()
  	{
+ 		Main.inicioMilanuncios=System.currentTimeMillis();
  		iniciarScraping();
  		System.out.println("Scraping a la web Milanuncios.com ha terminado");
+ 		Main.finalMilanuncios=System.currentTimeMillis();
  	}
 	public static void iniciarScraping() 
 	{
@@ -50,25 +52,21 @@ public class Milanuncios extends Thread{
 		 * 		Posicion 1: Venta
 		 * 	
 		 * */
-		String[] urlsWeb = {
-				"http://www.milanuncios.com/alquiler-de-viviendas-en-javea|xabia-alicante/",
-				"http://www.milanuncios.com/venta-de-viviendas-en-javea|xabia-alicante/"};
+		String[] localidades = {"Javea", "Denia", "Calpe", "Benidorm"};
 		
-		//obtenerInfo(urlsWeb[0], 2, "Jávea/Xàbia");
-		
-		for(int i=0;i<urlsWeb.length;i++){
-			
-			
+		for(int i=0;i<localidades.length;i++){
 			
 			if(i==0){
 				
-				obtenerInfo(urlsWeb[i], 2, "Jávea/Xàbia");
+				obtenerInfo("http://www.milanuncios.com/venta-de-viviendas-en-javea|xabia-alicante/", 1, localidades[i]);
+				obtenerInfo("http://www.milanuncios.com/alquiler-de-viviendas-en-javea|xabia-alicante/", 2, localidades[i]);
+				
+			}else{
+				
+				obtenerInfo("http://www.milanuncios.com/venta-de-viviendas-en-"+localidades[i]+"-alicante/", 1, localidades[i]);
+				obtenerInfo("http://www.milanuncios.com/alquiler-de-viviendas-en-"+localidades[i]+"-alicante/", 2, localidades[i]);
 			}
 			
-			if(i==1){
-				
-				obtenerInfo(urlsWeb[i], 1, "Jávea/Xàbia");
-			}
 		}
 				
 	}
@@ -152,68 +150,72 @@ public class Milanuncios extends Thread{
 							.userAgent("Mozilla/5.0")
 							.post();
 					
-					//Obtener la referencia
-					Elements numReferencia = docDetalles.getElementsByClass("anuRefBox");
-					
-					for(Element detalle : numReferencia){
-						
-						referencia=detalle.getElementsByTag("b").text();
-										
-					}
-					
-					fecha=docDetalles.getElementsByClass("anuFecha").text();
-					titulo=docDetalles.getElementsByClass("pagAnuTituloBox").text();
-					categoria=docDetalles.getElementsByClass("anuTitulo").text();
-					descripcion=docDetalles.getElementsByClass("pagAnuCuerpoAnu").text();
-					
-					//Obtener Precio
-					txtPrecio = docDetalles.getElementsByClass("pr").text();
-					
-					if(txtPrecio.equals("")){
-						
-						txtPrecio="0";
-					}
-					for(int i=0;i<txtPrecio.length();i++){
-						
-						if(Character.isDigit(txtPrecio.charAt(i))){
-							
-							precioReal+=txtPrecio.charAt(i);
-						}
-					}
-					
-					
-					//Obtener Metros 2
-					superficie=docDetalles.getElementsByClass("m2").text();
-					
-					if(superficie.equals("")){
-						
-						superficie="0 m2";
-					}
-							
-					//Obtener Habitaciones
-					txtHabitaciones=docDetalles.getElementsByClass("dor").text();
-					
-					if(txtHabitaciones.equals("")){
-						
-						txtHabitaciones="0";
-					}
-					for(int i=0;i<txtHabitaciones.length();i++){
-						
-						if(Character.isDigit(txtHabitaciones.charAt(i))){
-							
-							numHabitaciones+=txtHabitaciones.charAt(i);
-						}
-					}
-				
-					//Obtener veces listado
-					Elements elementoVecesListado = docDetalles.getElementsByClass("dato");
-					vecesListado=elementoVecesListado.get(0).getElementsByTag("strong").text();
-					
 					//Obtener fotos
 					Elements fotos = docDetalles.getElementsByClass("pagAnuFotoBox");
 					
+					//Si tiene fotos el anuncio lo guardamos.
 					if(fotos.size()!=0){
 						
+						//Obtener la referencia
+						Elements numReferencia = docDetalles.getElementsByClass("anuRefBox");
+						
+						for(Element detalle : numReferencia){
+							
+							referencia=detalle.getElementsByTag("b").text();
+											
+						}
+						
+						fecha=docDetalles.getElementsByClass("anuFecha").text();
+						titulo=docDetalles.getElementsByClass("pagAnuTituloBox").text();
+						categoria=docDetalles.getElementsByClass("anuTitulo").text();
+						descripcion=docDetalles.getElementsByClass("pagAnuCuerpoAnu").text();
+						
+						//Obtener Precio
+						txtPrecio = docDetalles.getElementsByClass("pr").text();
+						
+						if(txtPrecio.equals("")){
+							
+							txtPrecio="0";
+						}
+						for(int i=0;i<txtPrecio.length();i++){
+							
+							if(Character.isDigit(txtPrecio.charAt(i))){
+								
+								precioReal+=txtPrecio.charAt(i);
+							}
+						}
+						
+						
+						//Obtener Metros 2
+						superficie=docDetalles.getElementsByClass("m2").text();
+						
+						if(superficie.equals("")){
+							
+							superficie="0 m2";
+						}
+								
+						//Obtener Habitaciones
+						txtHabitaciones=docDetalles.getElementsByClass("dor").text();
+						
+						if(txtHabitaciones.equals("")){
+							
+							txtHabitaciones="0";
+						}
+						for(int i=0;i<txtHabitaciones.length();i++){
+							
+							if(Character.isDigit(txtHabitaciones.charAt(i))){
+								
+								numHabitaciones+=txtHabitaciones.charAt(i);
+							}
+						}
+					
+						//Obtener veces listado
+						Elements elementoVecesListado = docDetalles.getElementsByClass("dato");
+						vecesListado=elementoVecesListado.get(0).getElementsByTag("strong").text();
+						
+						//Obtener fotos
+						fotos = docDetalles.getElementsByClass("pagAnuFotoBox");
+							
 						for(Element detalle : fotos){
 						
 							Elements urlImagenes = detalle.getElementsByClass("pagAnuFoto");
@@ -223,23 +225,24 @@ public class Milanuncios extends Thread{
 								listaFotos.add(detalleUrl.getElementsByTag("img").attr("src"));
 							}						
 						}
+						
+								
+						
+						//Añadir variables al ContenedorAnuncio
+						contenedorAnuncio.add(urlDetalles);
+						contenedorAnuncio.add(referencia);
+						contenedorAnuncio.add(fecha);
+						contenedorAnuncio.add(titulo);
+						contenedorAnuncio.add(categoria);
+						contenedorAnuncio.add(descripcion);
+						contenedorAnuncio.add(precioReal);
+						contenedorAnuncio.add(numHabitaciones);
+						contenedorAnuncio.add(vecesListado);
+						contenedorAnuncio.add(superficie);
+						
+						insertarInmueble(operacion, poblacion);
 					}
-							
 					
-					//Añadir variables al ContenedorAnuncio
-					contenedorAnuncio.add(urlDetalles);
-					contenedorAnuncio.add(referencia);
-					contenedorAnuncio.add(fecha);
-					contenedorAnuncio.add(titulo);
-					contenedorAnuncio.add(categoria);
-					contenedorAnuncio.add(descripcion);
-					contenedorAnuncio.add(precioReal);
-					contenedorAnuncio.add(numHabitaciones);
-					contenedorAnuncio.add(vecesListado);
-					contenedorAnuncio.add(superficie);
-					
-					insertarInmueble(operacion, poblacion);
-					//System.exit(0);
 				}	
 			}
 		} catch (IOException e) {
@@ -404,26 +407,35 @@ public class Milanuncios extends Thread{
 	public static void descargaImagenes(String idInmueble, int codigoInmueble, int codigoDetallesInmueble){
 		
 		String rutaCarpeta;
+		boolean imagenDescargada;
+		int numImagenesDescargadas=0;
 		
+		if(listaFotos.size()!=0){
+			
+			//Creamos la carpeta donde guardaremos las imagenes.
+			rutaCarpeta=crearCarpetaImagenes(idInmueble, Integer.toString(codigoInmueble));
+		
+			for(int i=0;i<listaFotos.size()&&numImagenesDescargadas<5;i++){
+				
+				imagenDescargada=descargaImagenesInmueble(listaFotos.get(i), rutaCarpeta, Integer.toString(numImagenesDescargadas), idInmueble);
+				
+				if(imagenDescargada)
+					numImagenesDescargadas++;
+				
+			}	
+		}
+		
+		//Actualizar campo numImagenes de la tabla detallesInmueble.
 		try{
 			
-			if(listaFotos.size()!=0){
-				
-				//Creamos la carpeta donde guardaremos las imagenes.
-				rutaCarpeta=crearCarpetaImagenes(idInmueble, Integer.toString(codigoInmueble));
+			PreparedStatement pstmt= conexion.prepareStatement("UPDATE detallesInmueble SET det_numImagenes="+numImagenesDescargadas+" where det_codigo="
+									+codigoDetallesInmueble);
+			pstmt.executeUpdate();
+		}catch(SQLException ex){
 			
-				for(int i=0;i<listaFotos.size()&&i<5;i++){
-					
-					descargaImagenesInmueble(listaFotos.get(i), rutaCarpeta, Integer.toString(i));
-				}	
-			}
-		}catch (IOException e) {
-			
-			System.out.println("Ha habido un error al intentar descargar la imagen.");
-			System.out.println(e.getMessage()+"\n"+e.getStackTrace());
+			System.out.println("Error al insertar el numero de Imagenes descargadas, el la tabla detallesInmueble de la Base de Datos");
+			System.out.println(ex.getMessage()+"\n"+ex.getErrorCode());
 		}	
-		
-		
 	}
 	
 	public static String crearCarpetaImagenes(String idInmueble, String codInmueble){
@@ -438,21 +450,61 @@ public class Milanuncios extends Thread{
 	}
 	
 	
-	public static void descargaImagenesInmueble(String src, String rutaCarpeta, String numImagen)  throws IOException {
+	public static boolean descargaImagenesInmueble(String src, String rutaCarpeta, String numImagen, String idInmueble){
 	
-        URL url = new URL(src);
-        InputStream in = url.openStream();
+		try{
+			
+			 URL url = new URL(src);
+		        InputStream in = url.openStream();
 
-        OutputStream out = new BufferedOutputStream(new FileOutputStream(rutaCarpeta.concat("/"+numImagen+".jpg")));
+		        String ruta=rutaCarpeta.concat("/"+numImagen+".jpg");
+		        
+		        OutputStream out = new BufferedOutputStream(new FileOutputStream(ruta));
 
+		       
+		        for (int b; (b = in.read()) != -1;) {
+		            out.write(b);
+		        }
+		        out.close();
+		        in.close();
+
+		        ImageResizer nuevaImagen = new ImageResizer();
+		        
+		        nuevaImagen.cargarImagen(ruta, 1000, 644);
+		        
+		        return true;
+		}catch (IOException e) {
+			
+			System.out.println("Ha habido un error al intentar descargar la imagen de Milanuncios, ID Inmueble: "+idInmueble);
+			System.out.println(e.getMessage()+"\n"+e.getStackTrace());
+			
+			return false;
+		}
        
-        for (int b; (b = in.read()) != -1;) {
-            out.write(b);
-        }
-        out.close();
-        in.close();
-
     }
 }
-
+/*
+ //Descargamos cada imagene.
+		for(int i=0;i<listaImagenes.size()&&numImagenesDescargadas<5;i++){
+        	
+        	imagenDescargada=descargaImagenes(listaImagenes.get(i), Integer.toString(i));
+        	
+        	if(imagenDescargada){
+        		
+        		numImagenesDescargadas++;
+        	}
+        }
+		
+        //Actualizar campo numImagenes de la tabla detallesInmueble.
+		try{
+			
+			PreparedStatement pstmt= conexion.prepareStatement("UPDATE detallesInmueble SET det_numImagenes="+numImagenesDescargadas+" where det_codigo="
+									+Integer.parseInt(caracteristicasAnuncio.get(15)));
+			pstmt.executeUpdate();
+		}catch(SQLException ex){
+			
+			System.out.println("Error al insertar el numero de Imagenes descargadas, el la tabla detallesInmueble de la Base de Datos");
+			System.out.println(ex.getMessage()+"\n"+ex.getErrorCode());
+		}	
+ */
 
