@@ -440,13 +440,24 @@ public class Milanuncios extends Thread{
 	
 	public static String crearCarpetaImagenes(String idInmueble, String codInmueble){
 		
+		File nuevo = new File(".");
 		
 		//String ruta = "/Applications/XAMPP/xamppfiles/htdocs/openshift/imagenesAnuncios/Milanuncios/".concat(codInmueble+"-"+idInmueble);
-		String ruta = "/var/lib/openshift/553157b65973ca9f040000fb/app-root/repo/diy/imagenesAnuncios/Milanuncios/".concat(codInmueble+"-"+idInmueble);
-		rutaCarpetaImagenes=ruta;
+		//String ruta = "/var/lib/openshift/553157b65973ca9f040000fb/app-root/repo/diy/imagenesAnuncios/Milanuncios/".concat(codInmueble+"-"+idInmueble);
+		String ruta="";
 		
-		File directorio = new File(ruta);
-		directorio.mkdir();
+		try {
+			ruta = "../"+nuevo.getCanonicalPath()+"/Milanuncios/".concat(codInmueble+"-"+idInmueble);
+			rutaCarpetaImagenes=ruta;
+			
+			File directorio = new File(ruta);
+			directorio.mkdir();
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 		
 		return ruta;
 	}
