@@ -440,7 +440,9 @@ public class Milanuncios extends Thread{
 	
 	public static String crearCarpetaImagenes(String idInmueble, String codInmueble){
 		
-		String ruta = "/Applications/XAMPP/xamppfiles/htdocs/openshift/imagenesAnuncios/Milanuncios/".concat(codInmueble+"-"+idInmueble);
+		
+		//String ruta = "/Applications/XAMPP/xamppfiles/htdocs/openshift/imagenesAnuncios/Milanuncios/".concat(codInmueble+"-"+idInmueble);
+		String ruta = "/var/lib/openshift/553157b65973ca9f040000fb/app-root/repo/diy/imagenesAnuncios/Milanuncios/".concat(codInmueble+"-"+idInmueble);
 		rutaCarpetaImagenes=ruta;
 		
 		File directorio = new File(ruta);
@@ -483,28 +485,4 @@ public class Milanuncios extends Thread{
        
     }
 }
-/*
- //Descargamos cada imagene.
-		for(int i=0;i<listaImagenes.size()&&numImagenesDescargadas<5;i++){
-        	
-        	imagenDescargada=descargaImagenes(listaImagenes.get(i), Integer.toString(i));
-        	
-        	if(imagenDescargada){
-        		
-        		numImagenesDescargadas++;
-        	}
-        }
-		
-        //Actualizar campo numImagenes de la tabla detallesInmueble.
-		try{
-			
-			PreparedStatement pstmt= conexion.prepareStatement("UPDATE detallesInmueble SET det_numImagenes="+numImagenesDescargadas+" where det_codigo="
-									+Integer.parseInt(caracteristicasAnuncio.get(15)));
-			pstmt.executeUpdate();
-		}catch(SQLException ex){
-			
-			System.out.println("Error al insertar el numero de Imagenes descargadas, el la tabla detallesInmueble de la Base de Datos");
-			System.out.println(ex.getMessage()+"\n"+ex.getErrorCode());
-		}	
- */
 
