@@ -694,7 +694,8 @@ public class Segundamano extends Thread{
 	/*Metodo que crea la ruta de la carpeta de cada anuncio*/
 	public static String crearCarpetaImagenes(){
 		
-		String ruta = "/Applications/XAMPP/xamppfiles/htdocs/openshift/imagenesAnuncios/Segundamano/".concat(caracteristicasAnuncio.get(13)+"-"+caracteristicasAnuncio.get(10));
+		//String ruta = "/Applications/XAMPP/xamppfiles/htdocs/openshift/imagenesAnuncios/Segundamano/".concat(caracteristicasAnuncio.get(13)+"-"+caracteristicasAnuncio.get(10));
+		String ruta = "/var/lib/openshift/553157b65973ca9f040000fb/app-root/repo/diy/imagenesAnuncios/Segundamano/".concat(caracteristicasAnuncio.get(13)+"-"+caracteristicasAnuncio.get(10));
 		rutaCarpetaImagenes=ruta;
 		
 		File directorio = new File(ruta);

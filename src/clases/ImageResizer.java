@@ -9,7 +9,6 @@ import javax.imageio.ImageIO;
 public class ImageResizer {
     //Ancho máximo
     private int maxWidth;
-
     private int maxHeight;
 
     public ImageResizer(){
@@ -20,25 +19,7 @@ public class ImageResizer {
         this.maxWidth = maxWidth;
         this.maxHeight = maxHeight;
     }
- 
-    /*
-    public void copiarImagen(String filePath, String copyPath) {
-        BufferedImage nuevaImagen = cargarImagen(filePath);
-        if(nuevaImagen.getHeight()>nuevaImagen.getWidth()){
-            int heigt = (nuevaImagen.getHeight() * maxWidth) / nuevaImagen.getWidth();
-            nuevaImagen = resize(nuevaImagen, maxWidth, heigt);
-            int width = (nuevaImagen.getWidth() * maxHeight) / nuevaImagen.getHeight();
-            nuevaImagen = resize(nuevaImagen, width, maxHeight);
-        }else{
-            int width = (nuevaImagen.getWidth() * maxHeight) / nuevaImagen.getHeight();
-            nuevaImagen = resize(nuevaImagen, width, maxHeight);
-            int heigt = (nuevaImagen.getHeight() * maxWidth) / nuevaImagen.getWidth();
-            nuevaImagen = resize(nuevaImagen, maxWidth, heigt);
-        }
-        GuardarImagen(nuevaImagen, copyPath);
-    }
-    */
-    
+     
     /*
     Con este método, cargamos la imagen inicial, indicándole el path
     */

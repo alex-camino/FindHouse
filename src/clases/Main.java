@@ -7,12 +7,28 @@ public class Main {
 		
 		//Llamamos a la clase Segundamano, para hacerle el Scraping
 		
+		
 		Segundamano scrapingSegundamano = new Segundamano();
-		Milanuncios scrapingMilanuncios = new Milanuncios();
+		//Milanuncios scrapingMilanuncios = new Milanuncios();
 		
-		scrapingSegundamano.start();
-		scrapingMilanuncios.start();
 		
+		try {
+			
+			scrapingSegundamano.start();
+			//scrapingMilanuncios.start();
+			
+			scrapingSegundamano.join();
+			//scrapingMilanuncios.join();
+			
+			
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		//ZilyoApi api = new ZilyoApi();
+		//api.iniciarApi();
 		
 	}
 }
