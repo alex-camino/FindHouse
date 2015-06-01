@@ -9,5 +9,6 @@
 	<classpathentry kind="lib" path="/Users/Alex/Eclipse/FindHouse/httpclient-4.4.1.jar"/>
 	<classpathentry kind="lib" path="/Users/Alex/Eclipse/FindHouse/httpcore-4.4.1.jar"/>
 	<classpathentry kind="lib" path="/Users/Alex/Eclipse/FindHouse/commons-logging-1.2.jar"/>
+	<classpathentry kind="lib" path="/Users/Alex/Eclipse/FindHouse/javax.mail-1.5.3.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

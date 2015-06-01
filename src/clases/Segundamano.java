@@ -8,11 +8,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.StringTokenizer;
 
 import org.jsoup.Jsoup;
@@ -20,15 +20,10 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import com.mysql.jdbc.Statement;
-
-import clases.Conexiones;
-
 
 public class Segundamano extends Thread{
 
-    public static Connection conexion;
-    public static String rutaCarpetaImagenes;
+    //public static Connection conexion;
     
     //    VARIABLES GLOBALES NECESARIAS POR ANUNCIO
     public static ArrayList<String> urlImagenes = new ArrayList<String>();
@@ -39,30 +34,26 @@ public class Segundamano extends Thread{
  	
  	public void run()
  	{
- 		Main.inicioSegundamano = System.currentTimeMillis();
+ 		
+ 		Main.mensajesError.add("\nSCRAPING a la web www.segundamano.es ha comenzado.\n");
  		iniciarScraping();
- 		System.out.println("El Scraping a la web Segundamano.es ha terminado");
- 		Main.finalSegundamano = System.currentTimeMillis();
- 	}
+ 		
+ 	}	
+ 		
  	
 	public static void iniciarScraping() {
 		
-		//Llamamos al metodo realizar conexion para poder conectarnos a la BD.
-		conexion=Conexiones.realizarConexion();
-		String[] localidades = {"Javea", "Denia", "Calpe", "Benidorm"};
-		
-		
-		for(int i=0;i<localidades.length;i++){
+		for(int i=0;i<Main.listaLocalidades.size();i++){
 			
 			//Venta
 			operacion=1;
-			poblacion=localidades[i];
-			obtenerInfo("http://www.segundamano.es/venta-de-pisos-y-casas-alicante/"+localidades[i]+".htm?ca=3_s&fPos=601&fOn=sb_st");
+			poblacion=Main.listaLocalidades.get(i);
+			obtenerPaginas("http://www.segundamano.es/venta-de-pisos-y-casas-alicante/"+Main.listaLocalidades.get(i)+".htm?ca=3_s&fPos=601&fOn=sb_st");
 			
 			//Alquiler
 			operacion=2;
-			poblacion=localidades[i];
-			obtenerInfo("http://www.segundamano.es/alquiler-de-pisos-y-casas-alicante/"+localidades[i]+".htm?ca=3_s&fPos=576&fOn=sb_st");
+			poblacion=Main.listaLocalidades.get(i);
+			obtenerPaginas("http://www.segundamano.es/alquiler-de-pisos-y-casas-alicante/"+Main.listaLocalidades.get(i)+".htm?ca=3_s&fPos=576&fOn=sb_st");
 			
 		}
 		
@@ -73,12 +64,11 @@ public class Segundamano extends Thread{
 	 * ACCIONES: Se encarga de conectar con la página web de segundamano y hacer el Scraping
 	 * para obtener las caracteristicas que queramos.
 	 * */
-	public static void obtenerInfo(String url){
+	public static void obtenerPaginas(String url){
 		
-		
+		String fecha, urlDetallesAnuncio;
+		int contadorAnuncios;
 		ArrayList<String> listaPaginas = new ArrayList<String>();
-		ArrayList<String> listaURLAnuncios = new ArrayList<String>();
-		ArrayList<String> listaFechasAnuncios = new ArrayList<String>();
 		
 		try {
 			
@@ -98,12 +88,9 @@ public class Segundamano extends Thread{
 							
 			}
 			
-			//Se pone '-2' porque corresponden a las urls de boton siguiente y boton ultima pagina.
-			for(int i=0;i<(listaPaginas.size()-2);i++){
+			for(int i=0;i<Main.numPaginas;i++){
 				
-				//Reiniciar arrayList
-				listaFechasAnuncios.clear();
-				listaURLAnuncios.clear();
+				contadorAnuncios=0;
 				
 				if(i==0){
 					
@@ -122,27 +109,29 @@ public class Segundamano extends Thread{
 				
 				for(Element anuncio : listaAnuncios){
 					
+					//Si ha llegado al maximo de anuncios paramos.
+					if(contadorAnuncios==Main.cantAnuncios)
+						break;
 					
-					listaFechasAnuncios.add(anuncio.getElementsByClass("date").text());	
-					listaURLAnuncios.add(anuncio.getElementsByClass("subjectTitle").attr("href"));
-							
-				}
-				
-				for(int x=0;x<listaURLAnuncios.size();x++){
 					
 					//Reiniciar ArrayList.
 					caracteristicasAnuncio.clear();
 					urlImagenes.clear();
 					
-					obtenerInfoDetallesInmueble(listaURLAnuncios.get(x), listaFechasAnuncios.get(x));
+					fecha=anuncio.getElementsByClass("date").text();	
+					urlDetallesAnuncio=anuncio.getElementsByClass("subjectTitle").attr("href");
 					
+					obtenerInfoDetallesInmueble(urlDetallesAnuncio, fecha);
+					
+					contadorAnuncios++;
 				}
+			
 			}
 			
-		} catch (IOException e) {
+		} catch (IOException ex) {
 			
-			System.out.println("Ha habido un error al hacer el Scraping a la Web.");
-			System.out.println(e.getMessage()+"\n"+e.getStackTrace());
+			Main.mensajesError.add("\nHa habido un error al hacer el Scraping a la Web principal de Segundamano.es"
+					          +"\n"+ex.getMessage()+"\n"+ex.getStackTrace());
 		}		
 	}
 	
@@ -153,18 +142,18 @@ public class Segundamano extends Thread{
 	 * de llamar al metodo de las imagenes para pasarle el arraylist con las URL de las imagenes de cada inmueble
 	 * 
 	 * */
-	public static void obtenerInfoDetallesInmueble(String url, String fechaAnuncio){
-				
-		String  cadena="", precio="", precioFinal="", cuadroImagenes="", titulo=""
-				,descripcion="", vendedor="", habitaciones="", superficie="", terreno="", categoria="", tipo="", fecha="", urlAnuncio="";
-		int i=0;
-		boolean existenImagenes=true, anuncioCorrecto=false;
+	public static void obtenerInfoDetallesInmueble(String urlDetalles, String fechaAnuncio){
 		
-		fecha=fechaAnuncio;
+		
+		String  cadena="", precio="", precioFinal="", cuadroImagenes="", titulo="", caracteristicas=""
+				,descripcion="", vendedor="", habitaciones="", superficie="", terreno="", tipo="", fecha="";
+		int i=0;
+		boolean existenImagenes=true, anuncioCorrecto=false, existenCaracteristicas=false;
+			
 		
 		try {
 			
-			Document doc = Jsoup.connect(url)
+			Document doc = Jsoup.connect(urlDetalles)
 					.userAgent("Mozilla/5.0")
 					.post();
 			
@@ -175,9 +164,10 @@ public class Segundamano extends Thread{
 			for(Element anuncio : listaAnuncios){
 								
 				
-				//Controlaar si hay imagenes en el anuncio.
-                cuadroImagenes=doc.getElementsByClass("centerMachine").attr("alt");
-				if(!cuadroImagenes.equalsIgnoreCase("este anuncio no tiene foto")){
+				//Controlaar si hay imagenes en el anuncio, si no lo descartamos.
+                cuadroImagenes=doc.getElementsByClass("centerMachine").toString();
+                
+				if(!cuadroImagenes.contains("este anuncio no tiene foto")){
 					
 					anuncioCorrecto=true;
 					
@@ -205,6 +195,7 @@ public class Segundamano extends Thread{
 						caracteristicasAnuncio.add(vendedor);
 					
 					
+					//AÑADIR AL ARRAY DE IMAGENES TODAS LAS QUE HAYAN.
                 	try{
 						
 						while(existenImagenes){
@@ -253,9 +244,6 @@ public class Segundamano extends Thread{
 											terreno=listasDetalles.get(x*2).text();
 								break;
 							
-							case "categoría":
-											categoria=listasDetalles.get(x*2).text();
-								break;
 							
 							case "tipo":
 											tipo=listasDetalles.get(x*2).text();
@@ -285,14 +273,8 @@ public class Segundamano extends Thread{
 					caracteristicasAnuncio.add(terreno);
 				
 				 // CARACTERISTICAS ANUNCIO - POS-6 - Categoria 
-				if(categoria.equals(""))
-					caracteristicasAnuncio.add("No hay categoria");
-				else
-					caracteristicasAnuncio.add(categoria);
-				
-				// CARACTERISTICAS ANUNCIO - POS-7 - Tipo 
 				if(tipo.equals(""))
-					caracteristicasAnuncio.add("No hay tipo");
+					caracteristicasAnuncio.add("No hay categoria");
 				else
 					caracteristicasAnuncio.add(tipo);
 				
@@ -312,7 +294,7 @@ public class Segundamano extends Thread{
 						}
 					}
 					
-					// CARACTERISTICAS ANUNCIO - POS-8 - Numero de veces Visitado 
+					// CARACTERISTICAS ANUNCIO - POS-7 - Numero de veces Visitado 
 					caracteristicasAnuncio.add(numVeces);
 				}else{
 					
@@ -340,237 +322,102 @@ public class Segundamano extends Thread{
 					
 				}
 				
-				// CARACTERISTICAS ANUNCIO - POS-9 - Precio Inmueble
-				caracteristicasAnuncio.add(precioFinal);
-				
-				// CARACTERISTICAS ANUNCIO - POS-10 - ID Inmueble
-				caracteristicasAnuncio.add(obtenerIdInmueble(url));
-				
-				// CARACTERISTICAS ANUNCIO - POS-11 - Fecha Anuncio
-				caracteristicasAnuncio.add(fecha);
-				
-				// CARACTERISTICAS ANUNCIO - POS-12 - URL Inmueble
-				caracteristicasAnuncio.add(url);
-				
-				
-				
-				//Añadir info a la Base de datos
-				addInfoBD();
-			}
-			
-		} catch (IOException e) {
-			
-			System.out.println("Ha habido un error al hacer el Scraping a la Web de Detalles del Inmueble");
-			System.out.println(e.getMessage()+"\n"+e.getStackTrace());
-		}	
-			
-	}
-	
-	//METODO QUE INSERTA LA INFORMACION EN LA BD.
-	public static void addInfoBD(){
-		
-		try{
-			
-			//INSERTAR INMUEBLE
-		
-			PreparedStatement pstmt= conexion.prepareStatement("insert into inmuebles(in_titulo, in_fecha, in_url, in_operacion, in_idInmueble, in_web) values(?,?,?,?,?,?)"
-				   ,Statement.RETURN_GENERATED_KEYS);
-			pstmt.setString(1, caracteristicasAnuncio.get(0));
-			pstmt.setString(2, caracteristicasAnuncio.get(11));
-			pstmt.setString(3, caracteristicasAnuncio.get(12));
-			pstmt.setInt(4, operacion);
-			pstmt.setString(5, caracteristicasAnuncio.get(10));
-			pstmt.setString(6, "Segundamano");
-			pstmt.executeUpdate();
-			
-			//Obtener el ID del inmueble creado anteriormente.
-			ResultSet idGenerado = pstmt.getGeneratedKeys();
-			while(idGenerado.next()){
-				
-				// CARACTERISTICAS ANUNCIO - POS-13 CodigoInmueble
-				caracteristicasAnuncio.add(Integer.toString(idGenerado.getInt(1)));
-			}
-			idGenerado.close();
-			// FIN INSERTAR INMUEBLE ----------------------------------------
-			
-			// INSERTAR CARACTERISTICAS ANUNCIO.
-			// CARACTERISTICAS ANUNCIO - POS-14 - idCaracteristicasInmueble
-			caracteristicasAnuncio.add(Integer.toString(insertarCaracteristicasInmueble()));
-			
 
-			//Insertar Detalles Inmueble
-			insertarDetallesInmueble();
-			
-			
-			pstmt.close();
-			
-		}catch(SQLException ex){
-			
-			System.out.println("Error al insertar el inmueble en la Base de Datos");
-			System.out.println(ex.getMessage()+"\n"+ex.getErrorCode());
-		}
-		
-	}
-		
-	
-	/*
-	 * METODO PARA INSERTAR LAS CARACTERISTICAS DEL INMUEBLE
-	 * */
-	public static int insertarCaracteristicasInmueble(){
-		
-		boolean existenCaracteristicas=false;
-		String caracteristicas="";
-		int idCaracteristicasAnuncio=0;
+				//-----------CARACTERISTICAS ANUNCIO-------------------------------------------
+				Elements elemento = doc.getElementsByClass("extra_features_detail_sel");
 				
-		try{
-			
-			//Le paso la URL Detalles
-			Document doc = Jsoup.connect(caracteristicasAnuncio.get(12))
-					.userAgent("Mozilla/5.0")
-					.post();
-			
-			//-----------CARACTERISTICAS ANUNCIO-------------------------------------------
-			Elements elemento = doc.getElementsByClass("extra_features_detail_sel");
-			
-			for(int i=0;i<elemento.size();i++){
-				
-				existenCaracteristicas=true;
-				if(i==elemento.size()-1){
-					caracteristicas += elemento.get(i).text()+".";
-				}else{
-					caracteristicas += elemento.get(i).text()+", ";
+				for(int x=0;x<elemento.size();x++){
+					
+					existenCaracteristicas=true;
+					if(x==elemento.size()-1){
+						caracteristicas += elemento.get(x).text()+".";
+					}else{
+						caracteristicas += elemento.get(x).text()+", ";
+					}
+					
 				}
 				
+				if(!existenCaracteristicas){
+					
+					caracteristicas="No hay caracteristicas";
+				}
+				//------------------------------------------------------------------------------
+							
+				//REEMPLAZAR HOY POR LA FECHA ACTUAL
+				if(fechaAnuncio.contains("hoy")||fechaAnuncio.contains("HOY")||fechaAnuncio.contains("ayer")||fechaAnuncio.contains("AYER")){
+											
+					fecha=obtenerFecha(fechaAnuncio);
+					
+				}else{
+					
+					fecha=fechaAnuncio;
+				}
+				
+				caracteristicasAnuncio.add(precioFinal);  			         //  POS-8 - Precio Inmueble
+				caracteristicasAnuncio.add(obtenerIdInmueble(urlDetalles));  //  POS-9 - ID Inmueble
+				caracteristicasAnuncio.add(fecha);                           //  POS-10 - Fecha Anuncio
+				caracteristicasAnuncio.add(urlDetalles);                     //  POS-11 - URL Inmueble
+				caracteristicasAnuncio.add(caracteristicas);                 //  POS-12-Caracteristicas anuncio
+				
+				
+				//CREAMOS EL INMUEBLE
+				crearInmueble();
+				
 			}
 			
-			if(!existenCaracteristicas){
-				
-				caracteristicas="No hay caracteristicas";
-			}
-			//------------------------------------------------------------------------------
+		} catch (IOException ex) {
 			
-			//Statement.RETURN_GENERATED_KEYS --> Nos permite obtener el ultimo id generado.
-			PreparedStatement pstmt= conexion.prepareStatement("insert into caracteristicasInmueble(car_detalles) values(?)",Statement.RETURN_GENERATED_KEYS);
-			pstmt.setString(1, caracteristicas);
-			pstmt.executeUpdate();
-			
-			ResultSet idCaracAnuncio = pstmt.getGeneratedKeys();
-			while(idCaracAnuncio.next()){
-				
-				idCaracteristicasAnuncio=idCaracAnuncio.getInt(1);
-			}
-			
-			idCaracAnuncio.close();
-				
-			pstmt.close();
-		}catch(SQLException ex){
-			
-			System.out.println("Error al insertar las caracteristicas del inmueble en la Base de Datos");
-			System.out.println(ex.getMessage()+"\n"+ex.getErrorCode());
-			
-		} catch (IOException e) {
-			
-			System.out.println("Ha habido un error al hacer el Scraping a la Web.");
-			System.out.println(e.getMessage()+"\n"+e.getStackTrace());
+			Main.mensajesError.add("\nHa habido un error al hacer el Scraping a la Web de Detalles del Inmueble en Segundamano.es"
+			                  +"\n"+ex.getMessage()+"\n"+ex.getStackTrace());
+		
 		}	
-		
-		return idCaracteristicasAnuncio;
-		
+			
 	}
 	
-	
-	/*
-	 * METODO PARA INSERTAR LOS DETALLES DEL INMUEBLE
-	 * */
-	public static void insertarDetallesInmueble(){
+	public static void crearInmueble(){
 		
-		String descripInmueble;
+		Inmueble nuevoInmueble = new Inmueble();
 		
-		try{
+		nuevoInmueble.setTitulo(caracteristicasAnuncio.get(0));
+		nuevoInmueble.setDescripcion(caracteristicasAnuncio.get(1));
+		nuevoInmueble.setVendedor(caracteristicasAnuncio.get(2));
+		nuevoInmueble.setHabitaciones(Integer.parseInt(caracteristicasAnuncio.get(3)));
+		nuevoInmueble.setSuperficie(caracteristicasAnuncio.get(4));
+		nuevoInmueble.setTerreno(caracteristicasAnuncio.get(5));
+		nuevoInmueble.setCategoria(detectarCategoria());
+		nuevoInmueble.setNumVecesListado(Integer.parseInt(caracteristicasAnuncio.get(7)));
+		nuevoInmueble.setIdInmueble(caracteristicasAnuncio.get(9));
+		nuevoInmueble.setFecha(caracteristicasAnuncio.get(10));
+		nuevoInmueble.setUrl(caracteristicasAnuncio.get(11));
+		nuevoInmueble.setCaracteristicas(caracteristicasAnuncio.get(12));
+		nuevoInmueble.setOperacion(operacion);
+		nuevoInmueble.setPoblacion(poblacion);
+		nuevoInmueble.setWebAnuncio("Segundamano");
+		
+		//Insertamos el inmueble.
+		nuevoInmueble.insertarInmueble();
+		
+		if(nuevoInmueble.getCodInmueble()!=0){
 			
-			PreparedStatement pstmt= conexion.prepareStatement("insert into detallesInmueble(det_codInmueble, det_descripcion, det_vendedor, det_habitaciones,"
-					+"det_superficie,det_terreno, det_poblacion, det_vecesVisitado, det_precio, det_caracteristicas) values(?,?,?,?,?,?,?,?,?,?)",Statement.RETURN_GENERATED_KEYS);
-			
-			
-			pstmt.setInt(1, Integer.parseInt(caracteristicasAnuncio.get(13)));
-			pstmt.setString(2, caracteristicasAnuncio.get(1));
-			pstmt.setString(3, caracteristicasAnuncio.get(2));
-			
-			if(caracteristicasAnuncio.get(3).equals("")){
-				
-				pstmt.setInt(4, 0);
+			//Añadimos los precios
+			if(operacion==1){
+				nuevoInmueble.insertarPrecios(0, 0, 0, Integer.parseInt(caracteristicasAnuncio.get(8)));
 			}else{
-				
-				pstmt.setInt(4, Integer.parseInt(caracteristicasAnuncio.get(3)));
+				nuevoInmueble.insertarPrecios(Integer.parseInt(caracteristicasAnuncio.get(8)), 0, 0, 0);
 			}
 			
-			pstmt.setString(5, caracteristicasAnuncio.get(4));
-			pstmt.setString(6, caracteristicasAnuncio.get(5));
-			pstmt.setString(7, poblacion);
-			pstmt.setInt(8, Integer.parseInt(caracteristicasAnuncio.get(8)));
-			pstmt.setInt(9, Integer.parseInt(caracteristicasAnuncio.get(9)));
-			pstmt.setInt(10, Integer.parseInt(caracteristicasAnuncio.get(14)) );
-			pstmt.executeUpdate();
-				
-
-			ResultSet idDetallesInmueble = pstmt.getGeneratedKeys();
-			while(idDetallesInmueble.next()){
-				
-				// CARACTERISTICAS ANUNCIO - POS-15 - ID Detalles Inmueble
-				caracteristicasAnuncio.add(Integer.toString(idDetallesInmueble.getInt(1)));
-			}
 			
-			idDetallesInmueble.close();
-				
-			conexion.commit();
-			pstmt.close();
-			
-			
-			//Modificar el inmueble para añadirles su categoria
-			detectarCategoria();
-			
-			//Si hay imagenes, descargarlas.
+			//Descargamos las imagenes
 			if(descargarImagenes){
 				
-				obtenerUrlDescargarImagenes();
+				obtenerUrlDescargarImagenes(nuevoInmueble.getCodInmueble());
 			}
-			
-		}catch(SQLException ex){
-			
-			System.out.println("Error al insertar los detalles del inmueble en la Base de Datos");
-			System.out.println(ex.getMessage()+"\n"+ex.getErrorCode());
-			
-			try {
-				
-				conexion.rollback();
-				
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
-			
-		}catch(IndexOutOfBoundsException ex){
-		
-			System.out.println("Indice fuera de los limites, los detalles del anuncio no se han insertado, el anuncio se borrará");
-			
-			try {
-				
-				conexion.rollback();
-			
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
-		}
+		}	
 	}
 	
-	
-	/*
-	 * Metodo que detecta que categoria es el anuncio y la añade.
-	 * Tambien añade el numero de imagenes descargadas.
-	 * */
-	
-	public static void detectarCategoria(){
+	public static int detectarCategoria(){
 		
-		String categoria=caracteristicasAnuncio.get(7);
+		String categoria=caracteristicasAnuncio.get(6);
 		
 		int numCategoria=0;
 		
@@ -600,32 +447,38 @@ public class Segundamano extends Thread{
 		else
 			numCategoria = 12;
 		
-		try{
-			
-			PreparedStatement pstmt= conexion.prepareStatement("UPDATE inmuebles SET in_categoria="+numCategoria+" WHERE in_codigo="
-									+Integer.parseInt(caracteristicasAnuncio.get(13)));
-			pstmt.executeUpdate();
-		}catch(SQLException ex){
-			
-			System.out.println("Error al insertar la categoria del inmueble en la Base de Datos");
-			System.out.println(ex.getMessage()+"\n"+ex.getErrorCode());
-		}		
+		return numCategoria;
 		
+	}	
+	
+	public static String obtenerFecha(String fechaAnuncio){
 		
+		String[] meses = {"Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto"," ;Septiembre"
+	            ,"Octubre","Noviembre","Diciemrbre"};	
+		Date calendario = new Date();
+		String formato="dd", fechaBuena;
+		SimpleDateFormat formatoDia = new SimpleDateFormat(formato);
+					
+		formato="MM";
+		SimpleDateFormat formatoMes = new SimpleDateFormat(formato);
+		
+		fechaBuena=formatoDia.format(calendario)+"-"+meses[(Integer.parseInt(formatoMes.format(calendario))-1)];
+		
+		fechaBuena +=" "+fechaAnuncio.substring((fechaAnuncio.length()-5), fechaAnuncio.length());
+		
+		return fechaBuena;
 	}
-	
-	
 	
 	/*
 	 * METODO QUE OBTIENE LA URL DE LAS IMAGENES.
 	 * */
-	public static void obtenerUrlDescargarImagenes(){
+	public static synchronized void obtenerUrlDescargarImagenes(int codigoInmueble){
 		
 		ArrayList<String> listaImagenes = new ArrayList<String>();
 		ArrayList<String> partes = new ArrayList<String>();
 		boolean imagenDescargada=false;
 		int numImagenesDescargadas=0;
-		String rutaCarpeta;
+		String rutaCarpeta="";
 		
 		
 		//De cada URL, nos quedamos solo con la direccion Web.
@@ -650,7 +503,7 @@ public class Segundamano extends Thread{
 		for(int i=0;i<listaImagenes.size()&&numImagenesDescargadas<5;i++){
         	
 			//Creamos la carpeta donde guardaremos las imagenes.
-			rutaCarpeta=crearCarpetaImagenes();
+			rutaCarpeta=crearCarpetaImagenes(codigoInmueble);
 		
 			imagenDescargada=descargaImagenesInmueble(listaImagenes.get(i), rutaCarpeta, Integer.toString(numImagenesDescargadas));
         	
@@ -661,18 +514,42 @@ public class Segundamano extends Thread{
         	}
         }
 		
-        //Actualizar campo numImagenes de la tabla detallesInmueble.
+		//Actualizar campo numImagenes de la tabla detallesInmueble.
 		try{
 			
-			PreparedStatement pstmt= conexion.prepareStatement("UPDATE detallesInmueble SET det_numImagenes="+numImagenesDescargadas+" where det_codigo="
-									+Integer.parseInt(caracteristicasAnuncio.get(15)));
-			pstmt.executeUpdate();
+			PreparedStatement pstmt;
+			
+			if(numImagenesDescargadas!=0){
+				
+				 pstmt= Main.conexion.prepareStatement("UPDATE inmuebles SET in_numImagenes="+numImagenesDescargadas+" where in_codigo="
+							+codigoInmueble);
+				 pstmt.executeUpdate();
+				 
+				 Main.conexion.commit();
+				 pstmt.close();
+				
+			}else{
+				
+				//Eliminamos la carpeta
+				File carpetaEliminar = new File(rutaCarpeta);
+				carpetaEliminar.delete();
+				
+				
+				pstmt= Main.conexion.prepareStatement("DELETE FROM precios where precio_codigo in (SELECT in_precioCodigo from inmuebles where in_codigo="+codigoInmueble+")");
+				pstmt.executeUpdate();
+				pstmt.close();
+				
+				
+			}
+			
+			
 		}catch(SQLException ex){
 			
-			System.out.println("Error al insertar el numero de Imagenes descargadas, el la tabla detallesInmueble de la Base de Datos");
-			System.out.println(ex.getMessage()+"\n"+ex.getErrorCode());
+			Main.mensajesError.add("\nError al insertar el numero de Imagenes descargadas, el la tabla Inmuebles de la Base de Datos, en la clase SEGUNDAMANO."
+			                  +"\n"+ex.getMessage()+"\n"+ex.getErrorCode());
+			
 		}	
-		
+			
 	}
 	
 	/*Metodo que obtiene el ID del inmueble a partir de la URL del anuncio.*/
@@ -692,26 +569,14 @@ public class Segundamano extends Thread{
 	}
 	
 	/*Metodo que crea la ruta de la carpeta de cada anuncio*/
-	public static String crearCarpetaImagenes(){
+	public static String crearCarpetaImagenes(int codigoInmueble){
 		
 		File nuevo = new File(".");
 		
-		//String ruta = "/Applications/XAMPP/xamppfiles/htdocs/openshift/imagenesAnuncios/Segundamano/".concat(caracteristicasAnuncio.get(13)+"-"+caracteristicasAnuncio.get(10));
-		//String ruta = "/var/lib/openshift/553157b65973ca9f040000fb/app-root/repo/diy/imagenesAnuncios/Segundamano/".concat(caracteristicasAnuncio.get(13)+"-"+caracteristicasAnuncio.get(10));
-		String ruta="";
-		
-		try {
-			ruta = "../"+nuevo.getCanonicalPath()+"/Milanuncios/".concat(caracteristicasAnuncio.get(13)+"-"+caracteristicasAnuncio.get(10));
-			rutaCarpetaImagenes=ruta;
-			
-			File directorio = new File(ruta);
-			directorio.mkdir();
-			
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
+		String ruta = "/Applications/XAMPP/xamppfiles/htdocs/openshift/imagenesAnuncios/Segundamano/".concat(Integer.toString(codigoInmueble)+"-"+caracteristicasAnuncio.get(9));
+				
+		File directorio = new File(ruta);
+		directorio.mkdir();
 		return ruta;
 	}
 	
@@ -740,34 +605,15 @@ public class Segundamano extends Thread{
 	        
 	        return true;
 			
-		}catch (IOException e) {
+		}catch (IOException ex) {
 			
-			System.out.println("Ha habido un error al intentar descargar las Imagenes desde Segundamano, probaremos con la siguiente. ID-Inmueble"+caracteristicasAnuncio.get(10));
-			System.out.println("Mensaje: "+e.getMessage() + "\nTraza: "+e.getStackTrace());
+			Main.mensajesError.add("\nHa habido un error al intentar descargar las Imagenes desde Segundamano, probaremos con la siguiente. ID-Inmueble: "+caracteristicasAnuncio.get(9)
+			                  +"\n"+ex.getMessage()+"\n"+ex.getStackTrace());
 			
 			return false;
 		}
         
     }
-	
-	public static void borrarCarpetaImagenAnuncio(File carpeta){
-		
-		File directorio = new File(rutaCarpetaImagenes);
-		
-		File[] ficheros = directorio.listFiles();
-		
-		for(int i=0;i<ficheros.length;i++){
-			
-			if(ficheros[i].isDirectory()){
-				
-				borrarCarpetaImagenAnuncio(ficheros[i]);
-
-			}
-				
-			ficheros[i].delete();	
-			
-		}
-	}
 
 }
 

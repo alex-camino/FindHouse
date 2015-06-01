@@ -23,12 +23,12 @@ public class Conexiones {
 			
 		} catch(SQLException ex){
         	
-        	System.out.println(ex + "Error SQLException al intentar conectar con la BD "+ex.getMessage());
+			Main.mensajesError.add(ex + "Error SQLException al intentar conectar con la BD "+ex.getMessage());
             conexion=null;
             
         }catch(Exception ex){
         	
-        	System.out.println(ex + "Error Exception al intentar conectar con la BD "+ex.getMessage());
+        	Main.mensajesError.add(ex + "Error Exception al intentar conectar con la BD "+ex.getMessage());
             conexion=null;
         }finally{
         	
